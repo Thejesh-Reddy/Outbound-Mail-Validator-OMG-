@@ -1,0 +1,23 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and temporary artifacts
+*.log
+*.tmp
+.coverage
+htmlcov/
+
+# Local training/evaluation outputs (keep reviewed release artifacts intentionally)
+*.confusion-matrix.png
+*.classification-report.txt
