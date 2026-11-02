@@ -37,7 +37,7 @@ Use the hosting provider's environment settings for production. `.env` is for lo
 Copy-Item .env.example .env
 python -m pip install -r requirements.txt
 python -m pytest -q
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
 In development, API authentication is optional unless `OMG_API_KEY` is set. In production, API authentication is mandatory. Production disables Swagger, ReDoc, and the OpenAPI document by default.

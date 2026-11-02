@@ -2,7 +2,7 @@
 
 ## `POST /api/v1/analyze`
 
-Requires `X-OMG-API-Key` when `OMG_API_KEY` is configured; production requires this key. Request fields: `channel` (must be `email`), non-empty `subject`, HTML/body string in `html`, one or more `recipients`, and optional `attachments` list. Each attachment must include `filename`, optional `content_type`, and `content_base64` (base64-encoded file bytes) when ClamAV scanning is configured. Metadata without bytes is never treated as scanned.
+Requires `X-OMG-API-Key` when `OMG_API_KEY` is configured; production requires this key. Request fields: `channel` (must be `email`), non-empty `subject`, `body` (plain-text content) and/or `html` (HTML content; at least one must contain non-whitespace text), one or more `recipients`, and optional `attachments` list. Existing clients that send only `html` remain supported. Text rules, URL inspection, and ML classification inspect all supplied body/HTML content; HTML-specific inspection uses `html` when supplied and otherwise uses `body`. Each attachment must include `filename`, optional `content_type`, and `content_base64` (base64-encoded file bytes) when ClamAV scanning is configured. Metadata without bytes is never treated as scanned.
 
 Response fields:
 - `status`: exactly `SAFE`, `WARNING`, or `RESTRICTED`.

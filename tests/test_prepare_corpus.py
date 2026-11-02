@@ -1,4 +1,4 @@
-from scripts.prepare_corpus import extract_body
+from model_training.prepare_corpus import extract_body
 
 
 def test_extract_body_keeps_subject_and_body_and_ignores_headers():
@@ -18,7 +18,7 @@ def test_extract_body_handles_html():
 
 
 def test_corpus_files_with_nonstandard_suffix_are_included(tmp_path):
-    from scripts.prepare_corpus import main
+    from model_training.prepare_corpus import main
     import os
 
     source = tmp_path / "corpus"

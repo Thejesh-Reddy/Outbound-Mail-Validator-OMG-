@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from scripts.train_model import load_labeled_data
+from model_training.train_model import load_labeled_data
 
 
 def test_training_data_maps_only_exact_supported_labels(tmp_path):
@@ -37,7 +37,7 @@ def test_training_data_rejects_single_class(tmp_path):
 
 
 def test_training_refuses_to_overwrite_existing_model_without_force(tmp_path):
-    from scripts.train_model import ensure_output_available
+    from model_training.train_model import ensure_output_available
 
     existing = tmp_path / "existing.joblib"
     existing.write_bytes(b"keep this model")
@@ -49,7 +49,7 @@ def test_training_refuses_to_overwrite_existing_model_without_force(tmp_path):
 
 
 def test_training_allows_explicit_force_for_existing_model(tmp_path):
-    from scripts.train_model import ensure_output_available
+    from model_training.train_model import ensure_output_available
 
     existing = tmp_path / "existing.joblib"
     existing.write_bytes(b"keep this model")

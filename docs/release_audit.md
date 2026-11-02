@@ -10,13 +10,13 @@
 
 The packaged `data/labeled_emails.csv` has 2,951 rows with columns `text,label`: 2,473 `SAFE` and 478 `RESTRICTED`.
 
-The local raw corpus described during project review contained 2,501 files under `ham` and 501 under `spam` (3,002 total). `scripts/prepare_corpus.py` maps ham to SAFE and spam to RESTRICTED, and skips unreadable, short, and duplicate files. The 51-row difference is consistent with those documented skip conditions, but the individual skipped records and exact reasons have not been audited.
+The local raw corpus described during project review contained 2,501 files under `ham` and 501 under `spam` (3,002 total). `model_training/prepare_corpus.py` maps ham to SAFE and spam to RESTRICTED, and skips unreadable, short, and duplicate files. The 51-row difference is consistent with those documented skip conditions, but the individual skipped records and exact reasons have not been audited.
 
 `data/README.md` describes a SpamAssassin-style corpus and suggests an Rspamd test-corpus release as a starter source. The exact provenance, download URL/version, license evidence, and checksums for the local 3,002 raw files are not recorded in the package. Do not infer a confirmed source/license from the folder naming alone.
 
 ## Model provenance facts
 
-- `scripts/train_model.py` trains `models/email_classifier.joblib` by default from `data/labeled_emails.csv`, using an 80/20 stratified split by default, `random_state=42`, word and character TF-IDF, Logistic Regression, and `class_weight=None`.
+- `model_training/train_model.py` trains `models/email_classifier.joblib` by default from `data/labeled_emails.csv`, using an 80/20 stratified split by default, `random_state=42`, word and character TF-IDF, Logistic Regression, and `class_weight=None`.
 - The script can overwrite its output path; the updated script now refuses to overwrite an existing model unless `--force` is explicitly passed. Prefer a new candidate output filename.
 - No Python source file in the uploaded project references `email_classifier_balanced_backup.joblib` as an output. Its creation procedure is not documented.
 - The uploaded models are serialized with scikit-learn 1.9.1. The review runtime used 1.8.0 and emitted compatibility warnings. The project dependency is pinned to 1.9.1 to match the artifacts.

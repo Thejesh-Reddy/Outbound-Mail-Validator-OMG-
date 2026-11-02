@@ -1,10 +1,10 @@
-from app.checks.url_inspection import inspect_urls
-from app.checks.rule_checks import (
+from url_inspection.url_inspection import inspect_urls
+from text_validation.rule_checks import (
     inspect_patterns,
     extract_email_text,
     get_rule_catalog_status,
 )
-from app.checks.url_inspection import inspect_urls
+from url_inspection.url_inspection import inspect_urls
 
 def test_detects_lottery_prize_claim():
     findings = inspect_patterns(
@@ -70,7 +70,7 @@ def test_catalog_status_reports_156_entries():
         + status["catalog_only_patterns"]
         == 156
     )
-from app.checks.html_inspection import inspect_html_content
+from html_inspection.html_inspection import inspect_html_content
 
 
 def test_detects_hidden_html_text():
@@ -109,7 +109,7 @@ def test_normal_html_does_not_trigger_hidden_content_finding():
         for finding in findings
     )
 
-    from app.checks.url_inspection import inspect_urls
+    from url_inspection.url_inspection import inspect_urls
 
 
 def test_detects_non_http_link():
@@ -240,7 +240,7 @@ def test_detects_url_with_empty_hostname_and_port():
 
 def test_runtime_rules_can_be_updated_without_source_changes(tmp_path, monkeypatch):
     import json
-    from app.core.config import settings
+    from common.config import settings
     rules_path = tmp_path / "rules.json"
     rules_path.write_text(json.dumps({"rules": [{
         "code": "CUSTOM_TEST_RULE", "category": "TEST",

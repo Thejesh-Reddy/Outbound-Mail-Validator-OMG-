@@ -1,5 +1,5 @@
-from app.ml.preprocessing import email_to_text
-from app.ml.classifier import classify_email
+from ml_classifier.preprocessing import email_to_text
+from ml_classifier.classifier import classify_email
 
 
 def test_preprocessing_extracts_visible_html_text():
@@ -7,8 +7,8 @@ def test_preprocessing_extracts_visible_html_text():
 
 
 def test_classifier_reports_missing_model_instead_of_fake_prediction(monkeypatch, tmp_path):
-    from app.core.config import settings
-    from app.ml.model_loader import clear_model_cache
+    from common.config import settings
+    from ml_classifier.model_loader import clear_model_cache
     monkeypatch.setattr(settings, "MODEL_PATH", tmp_path / "missing.joblib")
     clear_model_cache()
     result = classify_email("Hello", "<p>World</p>")
@@ -18,8 +18,8 @@ def test_classifier_reports_missing_model_instead_of_fake_prediction(monkeypatch
 
 
 def test_low_confidence_prediction_is_restricted_for_review(monkeypatch, tmp_path):
-    import app.ml.classifier as classifier_module
-    from app.core.config import settings
+    import ml_classifier.classifier as classifier_module
+    from common.config import settings
 
     class FakeModel:
         classes_ = ["SAFE", "RESTRICTED"]
@@ -43,8 +43,8 @@ def test_low_confidence_prediction_is_restricted_for_review(monkeypatch, tmp_pat
 
 
 def test_high_confidence_safe_prediction_remains_safe(monkeypatch, tmp_path):
-    import app.ml.classifier as classifier_module
-    from app.core.config import settings
+    import ml_classifier.classifier as classifier_module
+    from common.config import settings
 
     class FakeModel:
         classes_ = ["SAFE", "RESTRICTED"]

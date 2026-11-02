@@ -1,6 +1,6 @@
-from app.checks.attachment_scanning import scan_attachments
-from app.schemas.email import EmailRequest
-from app.pipeline.orchestrator import analyze_email
+from attachment_scanning.attachment_scanning import scan_attachments
+from schemas.email import EmailRequest
+from decision_engine.orchestrator import analyze_email
 
 
 def test_attachments_fail_closed_when_scanner_missing():
@@ -22,7 +22,7 @@ def test_attachments_no_files_need_no_scanner():
 
 def test_normal_email_can_be_safe_when_required_baseline_checks_complete(monkeypatch):
     # The optional ML model may be absent; the baseline runtime checks still execute.
-    monkeypatch.setattr("app.pipeline.orchestrator.classify_email", lambda *_: {
+    monkeypatch.setattr("decision_engine.orchestrator.classify_email", lambda *_: {
         "available": False, "completed": False, "finding": None, "reason": "test"})
     request = EmailRequest(subject="Meeting", html="<p>See you at 10.</p>",
                            recipients=["user@example.com"], attachments=[])
@@ -32,7 +32,7 @@ def test_normal_email_can_be_safe_when_required_baseline_checks_complete(monkeyp
 
 
 def test_suspicious_email_is_restricted(monkeypatch):
-    monkeypatch.setattr("app.pipeline.orchestrator.classify_email", lambda *_: {
+    monkeypatch.setattr("decision_engine.orchestrator.classify_email", lambda *_: {
         "available": False, "completed": False, "finding": None, "reason": "test"})
     request = EmailRequest(subject="Congratulations", html="<p>Claim your lottery prize</p>",
                            recipients=["user@example.com"], attachments=[])
@@ -51,10 +51,10 @@ def test_invalid_recipient_rejected():
 
 
 def test_required_ml_unavailability_fails_closed(monkeypatch):
-    from app.core.config import settings
+    from common.config import settings
 
     monkeypatch.setattr(settings, "REQUIRE_ML", True)
-    monkeypatch.setattr("app.pipeline.orchestrator.classify_email", lambda *_: {
+    monkeypatch.setattr("decision_engine.orchestrator.classify_email", lambda *_: {
         "available": False, "completed": False, "finding": None, "reason": "model missing"})
     request = EmailRequest(subject="Meeting", html="<p>See you at 10.</p>",
                            recipients=["user@example.com"], attachments=[])

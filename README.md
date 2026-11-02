@@ -27,10 +27,14 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 Copy-Item .env.example .env
 python -m pytest -q
-python -m uvicorn app.main:app --reload
+python -m uvicorn app:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` during development. Endpoints: `GET /`, `GET /api/v1/health`, `GET /api/v1/ready`, `GET /api/v1/status`, and `POST /api/v1/analyze`.
+
+## Email body parsing
+
+The `/api/v1/analyze` request accepts either `body` (plain-text email content), `html` (HTML email content for backward compatibility), or both. At least one must contain non-whitespace text. Text rules, URL inspection and ML classification inspect the supplied body and HTML content; HTML-specific inspection uses `html` when supplied and otherwise checks `body`. This fixes the previous schema mismatch where `body` was not an accepted request field.
 
 ## Analyze request
 
@@ -38,7 +42,7 @@ Open `http://127.0.0.1:8000/docs` during development. Endpoints: `GET /`, `GET /
 {
   "channel": "email",
   "subject": "Team meeting",
-  "html": "<p>The meeting starts at 10 AM.</p>",
+  "body": "The meeting starts at 10 AM.",
   "recipients": ["recipient@example.com"],
   "attachments": []
 }
@@ -51,9 +55,9 @@ Notify must release the message only when the HTTP response is successful and bo
 Prepare a reviewed CSV with columns `text,label`; accepted labels are `SAFE`/`RESTRICTED` or `HAM`/`SPAM`. Keep training and holdout datasets separate.
 
 ```powershell
-python scripts/prepare_corpus.py --source "C:\path\to\extracted\corpus" --output data/labeled_emails.csv
-python scripts/train_model.py --data data/labeled_emails.csv --output models/email_classifier_new.joblib
-python scripts/evaluate_model.py --data data/independent_holdout.csv --model models/email_classifier.joblib
+python model_training/prepare_corpus.py --source "C:\path\to\extracted\corpus" --output data/labeled_emails.csv
+python model_training/train_model.py --data data/labeled_emails.csv --output models/email_classifier_new.joblib
+python model_training/evaluate_model.py --data data/independent_holdout.csv --model models/email_classifier.joblib
 ```
 
 The stratified report from training is not a production accuracy guarantee. The SpamAssassin-derived starter corpus is small and old; it is suitable for a baseline experiment, not sufficient by itself to validate production security performance. Do not commit email datasets, secrets, or `.env`.
@@ -76,7 +80,7 @@ The training pipeline uses a word-level TF-IDF representation plus character-lev
 Retrain after updating the labeled dataset. The training script refuses to overwrite an existing model unless `--force` is explicitly supplied. Prefer a new output filename so the current model remains available for rollback:
 
 ```powershell
-python scripts/train_model.py --data data/labeled_emails.csv --output models/email_classifier_new.joblib --test-size 0.2
+python model_training/train_model.py --data data/labeled_emails.csv --output models/email_classifier_new.joblib --test-size 0.2
 ```
 
 The API reports a model confidence when the loaded estimator supports `predict_proba`. Predictions below `OMG_ML_MIN_CONFIDENCE` are treated as `RESTRICTED` for manual review. The default is `0.60`; tune this only using validation data that is separate from the final holdout. Models that do not expose probabilities are still classified, but do not receive confidence-based handling.

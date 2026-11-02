@@ -1,6 +1,6 @@
 # OMG data
 
-`labeled_emails.csv` is generated locally and is intentionally not bundled. Do not commit private or company email.
+`labeled_emails.csv` is included as the current project training dataset. Confirm its source, license, and privacy suitability before sharing the repository. Do not add private or company email.
 
 ## Preparing a public raw-email corpus
 
@@ -9,7 +9,7 @@
 3. From the project root run:
 
 ```powershell
-python scripts/prepare_corpus.py --source "C:\path\to\extracted\corpus" --output data/labeled_emails.csv
+python model_training/prepare_corpus.py --source "C:\path\to\extracted\corpus" --output data/labeled_emails.csv
 ```
 
 The script labels `ham` as `SAFE` and `spam` as `RESTRICTED`, extracts subject and text body, excludes attachment payloads, skips duplicates and short/unreadable messages, and reports class counts. Manually review the corpus layout and sample records before training. It does not infer phishing, malicious attachments, inappropriate content, or whether a message is safe to send in your organization's context.

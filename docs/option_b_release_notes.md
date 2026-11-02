@@ -15,13 +15,13 @@
 The model file is intentionally not bundled. Copy the existing labeled dataset into `data/labeled_emails.csv`, or pass its actual path to the training command:
 
 ```powershell
-python scripts/train_model.py --data data/labeled_emails.csv --output models/email_classifier.joblib --test-size 0.2
+python model_training/train_model.py --data data/labeled_emails.csv --output models/email_classifier.joblib --test-size 0.2
 ```
 
 Do not use the final holdout set for training or threshold tuning. After training, evaluate against a separate, deduplicated labeled holdout CSV:
 
 ```powershell
-python scripts/evaluate_model.py --data data/independent_holdout.csv --model models/email_classifier.joblib
+python model_training/evaluate_model.py --data data/independent_holdout.csv --model models/email_classifier.joblib
 ```
 
 ## Threshold warning

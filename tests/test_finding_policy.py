@@ -1,4 +1,4 @@
-from app.pipeline.finding_policy import (
+from decision_engine.finding_policy import (
     FindingAction,
     action_for_finding,
     is_hard_block_finding,

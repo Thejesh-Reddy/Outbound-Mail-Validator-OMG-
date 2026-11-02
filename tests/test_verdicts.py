@@ -1,4 +1,4 @@
-from app.pipeline.decision_aggregator import decide_verdict
+from decision_engine.decision_aggregator import decide_verdict
 
 
 SAFE_SCAN = {"completed": True, "safe": True, "findings": []}

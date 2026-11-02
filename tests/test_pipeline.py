@@ -1,4 +1,4 @@
-from app.checks.pattern_catalog import (
+from text_validation.pattern_catalog import (
     get_patterns,
     get_catalog_summary,
     load_pattern_catalog,
