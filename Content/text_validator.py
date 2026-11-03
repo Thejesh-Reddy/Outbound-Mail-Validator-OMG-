@@ -7,7 +7,7 @@ from typing import Any
 from bs4 import BeautifulSoup
 from common.config import settings
 from common.exceptions import RuleConfigurationError
-from text_validation.pattern_catalog import get_catalog_summary
+from Content.pattern_catalog import get_catalog_summary
 
 logger = logging.getLogger(__name__)
 DEFAULT_RULES = [

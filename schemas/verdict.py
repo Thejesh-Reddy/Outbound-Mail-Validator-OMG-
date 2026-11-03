@@ -1,23 +1,48 @@
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class Finding(BaseModel):
+VerdictStatus = Literal["SAFE", "WARNING", "RESTRICTED"]
+
+
+class InspectionIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     code: str
-    category: str
+    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "MINOR", "LOW"]
+    reason: str
+
+
+class AttachmentResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    filename: str
+    status: VerdictStatus
+    detected_type: str | None = None
+    antivirus: str
+    confidence_score: float = Field(ge=0, le=100)
+    issues: list[InspectionIssue] = Field(default_factory=list)
+
+
+class PopupAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    show: bool
+    type: VerdictStatus
+    title: str
     message: str
+    actions: list[str] = Field(default_factory=list)
 
 
 class AnalysisResponse(BaseModel):
-    status: Literal["SAFE", "WARNING", "RESTRICTED"]
+    """Notify-facing response. Keep these keys aligned with the agreed contract."""
+    model_config = ConfigDict(extra="forbid")
+
+    status: VerdictStatus
     can_send: bool
-    confidence_score: float | None = Field(
-        default=None, ge=0, le=100,
-        description="Heuristic safety score (0-100), not a calibrated probability."
-    )
-    warning_required: bool = False
-    requires_acknowledgement: bool = False
-    patterns_detected: list[str] = Field(default_factory=list)
-    findings: list[Finding] = Field(default_factory=list)
-    inspection_coverage: dict[str, str] = Field(default_factory=dict)
-    model_version: str = "baseline-v1"
+    confidence_score: float = Field(ge=0, le=100)
+    requires_acknowledgement: bool
+    text: list[InspectionIssue] = Field(default_factory=list)
+    URL: list[InspectionIssue] = Field(default_factory=list)
+    attachments: list[AttachmentResult] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    popup: PopupAction | None
+    # Included as null in WARNING responses; no challenge service is added.
+    warning_challenge: str | None = None

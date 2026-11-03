@@ -16,7 +16,7 @@ async def lifespan(_app: FastAPI):
     # a service that might silently bypass mandatory ML inspection.
     settings.validate_production_configuration()
     if settings.is_production:
-        from text_validation.rule_checks import _load_runtime_rules
+        from Content.text_validator import _load_runtime_rules
         from ml_classifier.model_loader import load_model
 
         _load_runtime_rules()

@@ -1,1 +1,0 @@
-"""Text Validation components."""

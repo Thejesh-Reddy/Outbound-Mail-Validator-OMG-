@@ -1,8 +1,112 @@
-from schemas.verdict import AnalysisResponse, Finding
-from text_validation.pattern_catalog import get_catalog_summary
-from decision_engine.finding_policy import is_hard_block_finding
+from schemas.verdict import AnalysisResponse, InspectionIssue, AttachmentResult, PopupAction
+from decision_engine.finding_policy import action_for_finding, FindingAction, is_hard_block_finding
 
 
+def _severity_for(finding: dict) -> str:
+    """Map the approved central finding action to the response severity."""
+    if finding.get("category") == "INSPECTION_FAILURE":
+        return "CRITICAL"
+    action = action_for_finding(finding.get("code"))
+    if action == FindingAction.RESTRICTED:
+        return "CRITICAL"
+    if action == FindingAction.WARNING:
+        return "MINOR"
+    return "LOW"
+
+
+def _issues(findings: list[dict]) -> list[InspectionIssue]:
+    result: list[InspectionIssue] = []
+    seen: set[tuple[str, str]] = set()
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        code = str(finding.get("code") or "UNKNOWN_FINDING")
+        reason = str(finding.get("message") or "No additional details available.")
+        key = (code, reason)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(InspectionIssue(
+            code=code,
+            severity=_severity_for(finding),
+            reason=reason,
+        ))
+    return result
+
+
+def _popup(
+    status: str,
+    text_findings: list[dict],
+    url_findings: list[dict],
+    attachment_findings: list[dict],
+) -> PopupAction | None:
+
+    if status == "WARNING":
+        return PopupAction(
+            show=True,
+            type="WARNING",
+            title="Email Warning",
+            message="Review the email content before sending.",
+            actions=["EDIT_MAIL", "CLOSE"],
+        )
+
+    if status != "RESTRICTED":
+        return None
+
+    all_findings = text_findings + url_findings + attachment_findings
+
+    attachment_codes = {
+        "ATTACHMENT_MALWARE_DETECTED",
+        "PDF_ACTIVE_CONTENT",
+        "ATTACHMENT_SCAN_UNAVAILABLE",
+        "ATTACHMENT_SCAN_INCOMPLETE",
+        "PROHIBITED_ATTACHMENT_TYPE",
+        "DISGUISED_EXECUTABLE_FILENAME",
+        "FILE_SIGNATURE_MISMATCH",
+    }
+
+    url_codes = {
+        "NON_HTTP_LINK",
+        "MALFORMED_URL",
+        "URL_CREDENTIALS_PRESENT",
+        "URL_CREDENTIALS_IN_AUTHORITY",
+        "IP_ADDRESS_LINK",
+        "INVALID_HOSTNAME",
+        "IDN_HOSTNAME",
+        "LINK_TEXT_MISMATCH",
+    }
+
+    detected_codes = {
+        str(item.get("code", "")).upper()
+        for item in all_findings
+        if isinstance(item, dict)
+    }
+
+    if detected_codes & attachment_codes:
+        return PopupAction(
+            show=True,
+            type="RESTRICTED",
+            title="Attachment Restricted",
+            message="Remove the restricted attachment or discard the email.",
+            actions=["DISCARD_MAIL"],
+        )
+
+    if detected_codes & url_codes:
+        return PopupAction(
+            show=True,
+            type="RESTRICTED",
+            title="URL Restricted",
+            message="Remove the suspicious link or discard the email.",
+            actions=["DISCARD_MAIL"],
+        )
+
+    return PopupAction(
+        show=True,
+        type="RESTRICTED",
+        title="Email Restricted",
+        message="This email contains restricted content and cannot be sent.",
+        actions=["DISCARD_MAIL"],
+    )
 def decide_verdict(
     findings: list[dict],
     attachment_scan: dict,
@@ -10,20 +114,16 @@ def decide_verdict(
     coverage: dict[str, str] | None = None,
     model_version: str = "rules-baseline-v1",
     safety_score: float | None = None,
+    inspection_results: dict | None = None,
+    score_breakdown: dict[str, float | None] | None = None,
 ) -> AnalysisResponse:
-    """Apply the three-state safety policy.
+    """Build only the agreed Notify response fields; internal diagnostics stay internal."""
+    all_findings = [item for item in findings if isinstance(item, dict)]
+    inspection_results = inspection_results or {}
 
-    Scores are safety scores (higher means safer), not raw classifier confidence.
-    If no validated score is supplied, a clean result may pass the currently
-    implemented mandatory inspections, but no numeric score is fabricated.
-    """
-    all_findings = list(findings)
-    attachment_findings = (
-        attachment_scan.get("findings", [])
-        if isinstance(attachment_scan, dict) else []
-    )
+    attachment_findings = attachment_scan.get("findings", []) if isinstance(attachment_scan, dict) else []
     if isinstance(attachment_findings, list):
-        all_findings.extend(x for x in attachment_findings if isinstance(x, dict))
+        all_findings.extend(item for item in attachment_findings if isinstance(item, dict))
     else:
         checks_complete = False
         all_findings.append({
@@ -37,79 +137,72 @@ def decide_verdict(
         and attachment_scan.get("completed") is True
         and attachment_scan.get("safe") is True
     )
-    if not attachment_complete and not any(
-        x.get("category") == "INSPECTION_FAILURE" for x in all_findings
-    ):
+    if not attachment_complete and not any(x.get("category") == "INSPECTION_FAILURE" for x in all_findings):
         all_findings.append({
             "code": "ATTACHMENT_SCAN_INCOMPLETE",
             "category": "INSPECTION_FAILURE",
             "message": "Attachment inspection did not complete successfully.",
         })
-    if not checks_complete and not any(
-        x.get("category") == "INSPECTION_FAILURE" for x in all_findings
-    ):
+    if not checks_complete and not any(x.get("category") == "INSPECTION_FAILURE" for x in all_findings):
         all_findings.append({
             "code": "REQUIRED_INSPECTION_INCOMPLETE",
             "category": "INSPECTION_FAILURE",
             "message": "One or more required inspection components did not complete.",
         })
 
-    # Unknown and unreviewed finding codes remain blocking. The central policy
-    # registry is the only place where warning eligibility may be approved.
     mandatory_complete = checks_complete and attachment_complete
     hard_block = any(is_hard_block_finding(item) for item in all_findings) or not mandatory_complete
 
-    if safety_score is not None and not 0 <= safety_score <= 100:
+    # A numeric score is always returned. Pipeline failures are conservatively zero.
+    if safety_score is None:
+        safety_score = 0.0 if hard_block else 100.0
+    if not 0 <= safety_score <= 100:
         raise ValueError("safety_score must be between 0 and 100")
 
-    if hard_block or (safety_score is not None and safety_score < 75):
+    if hard_block or safety_score < 75:
         status = "RESTRICTED"
-    elif safety_score is not None and safety_score < 86:
+    elif safety_score < 86:
         status = "WARNING"
     else:
-        # A missing score is not converted into a fabricated 100. SAFE here
-        # means only that currently implemented mandatory checks found no
-        # blocking condition; inspection coverage and limitations are returned.
         status = "SAFE"
 
-    catalog = get_catalog_summary()
-    merged_coverage = {
-        "registered_catalog_entries": str(catalog["total_patterns"]),
-        "catalog_entries_marked_implemented": str(catalog["implemented_patterns"]),
-        "catalog_only_entries": str(catalog["catalog_only_patterns"]),
-        "runtime_text_rules": "complete",
-        "html_inspection": "complete",
-        "url_syntax_inspection": "complete",
-        "url_reputation": "not_implemented",
-        "attachment_scan": (
-            attachment_scan.get("status", "complete")
-            if attachment_complete and isinstance(attachment_scan, dict)
-            else "incomplete"
-        ),
-        "mandatory_inspections": "complete" if mandatory_complete else "incomplete",
-    }
-    if coverage:
-        merged_coverage.update(coverage)
+    text_findings = list(inspection_results.get("text", []))
+    # HTML-specific findings are represented in the agreed `text` issue array;
+    # the reference response has no separate top-level `html` field.
+    text_findings.extend(inspection_results.get("html", []))
+    url_findings = list(inspection_results.get("urls", []))
 
-    unique = []
-    seen = set()
-    for item in all_findings:
-        key = (item.get("code"), item.get("category"), item.get("message"))
-        if key not in seen:
-            seen.add(key)
-            unique.append(item)
+    # Include any pipeline failures that were attached to the text inspection.
+    text_issues = _issues(text_findings)
+    url_issues = _issues(url_findings)
 
-    is_warning = status == "WARNING"
+    attachment_items = attachment_scan.get("attachments", []) if isinstance(attachment_scan, dict) else []
+    if not isinstance(attachment_items, list):
+        attachment_items = []
+    attachments = [AttachmentResult.model_validate(item) for item in attachment_items]
+
+    warnings = attachment_scan.get("warnings", []) if isinstance(attachment_scan, dict) else []
+    if not isinstance(warnings, list):
+        warnings = []
+
+    # A WARNING acknowledgement token is not generated here: the project does
+    # not yet have a user-bound challenge/verification endpoint. Do not invent one.
     return AnalysisResponse(
         status=status,
         can_send=(status == "SAFE"),
-        confidence_score=round(float(safety_score), 2) if safety_score is not None else None,
-        warning_required=is_warning,
-        requires_acknowledgement=is_warning,
-        patterns_detected=sorted({
-            x.get("code", "UNKNOWN_FINDING") for x in unique
-        }),
-        findings=[Finding(**x) for x in unique],
-        inspection_coverage=merged_coverage,
-        model_version=model_version,
+        confidence_score=round(float(safety_score), 2),
+        requires_acknowledgement=(status == "WARNING"),
+        text=text_issues,
+        URL=url_issues,
+        attachments=attachments,
+        warnings=warnings,
+        popup=_popup(
+        status,
+        text_findings,
+        url_findings,
+        attachment_findings if isinstance(attachment_findings, list) else [],
+        ),
+        # Match the reference WARNING response shape without creating a token,
+        # database, endpoint, or acknowledgement infrastructure.
+        **({"warning_challenge": None} if status == "WARNING" else {}),
     )
