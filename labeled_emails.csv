@@ -1,0 +1,61 @@
+subject,body,label,source
+Weekly project status update,The development team completed the login page and will begin integration testing tomorrow. Please review the attached schedule in the shared workspace.,SAFE,synthetic_demo
+Meeting agenda for Thursday,Our weekly planning meeting is scheduled for Thursday at 10 AM. Please review the agenda and share any additional topics before the meeting.,SAFE,synthetic_demo
+Invoice for completed services,Please find the invoice summary for the consulting services completed last month. Contact the accounts team if you need clarification.,SAFE,synthetic_demo
+Password reset confirmation,"Your password reset was completed successfully. If you did not make this change, contact the IT help desk using the number in the company directory.",SAFE,synthetic_demo
+Quarterly business review,The quarterly review will take place next week. The finance and operations teams should submit their reports by Wednesday.,SAFE,synthetic_demo
+Updated leave policy,The updated leave policy is available on the employee portal. Please read the document and contact HR if you have questions.,SAFE,synthetic_demo
+Project delivery confirmation,We have received the approved project files and confirmed the delivery schedule. Thank you for your coordination.,SAFE,synthetic_demo
+Customer support case update,Your support request has been assigned to our service desk. We will provide an update after the technical team completes its review.,SAFE,synthetic_demo
+Training session registration,Your registration for the Python training session is confirmed. The session begins Monday at 9 AM in the training room.,SAFE,synthetic_demo
+Monthly account statement,Your monthly account statement is now available through the bank's official mobile application. Please sign in using your usual saved bookmark.,SAFE,synthetic_demo
+Purchase order approval,Purchase order PO-2048 has been approved by the procurement manager. The supplier will receive the order through the approved procurement system.,SAFE,synthetic_demo
+Office maintenance notice,Network maintenance is planned for Saturday between 8 PM and 10 PM. Save your work before the maintenance window begins.,SAFE,synthetic_demo
+Interview schedule,Your technical interview is scheduled for Tuesday at 2 PM. Please reply to confirm your availability.,SAFE,synthetic_demo
+Release notes for version update,Version 2.4 includes performance improvements and accessibility fixes. The release notes are available in the internal documentation portal.,SAFE,synthetic_demo
+Travel reimbursement status,Your travel reimbursement request has been reviewed. The approved amount will be processed according to the normal payroll schedule.,SAFE,synthetic_demo
+Team lunch arrangements,The team lunch is planned for Friday. Please let the office coordinator know whether you can attend.,SAFE,synthetic_demo
+Service renewal reminder,Your annual software subscription is due for renewal next month. Review the plan details in your account dashboard if you wish to continue.,SAFE,synthetic_demo
+Delivery tracking update,Your order has been dispatched. Use the tracking reference in your official order history to check delivery progress.,SAFE,synthetic_demo
+Security awareness announcement,The security team will conduct a phishing awareness session this Friday. Report suspicious messages through the approved reporting button.,SAFE,synthetic_demo
+Document review request,Please review the revised project proposal and add comments by the end of the day. The document is stored in the team's shared workspace.,SAFE,synthetic_demo
+Payment receipt,We have received your payment for invoice INV-3187. This message is your transaction confirmation for your records.,SAFE,synthetic_demo
+System access approved,Your access request has been approved by your manager. Sign in through the company portal using your existing credentials.,SAFE,synthetic_demo
+Customer appointment confirmation,Your service appointment is confirmed for 11 AM on 18 November. Contact the branch through its published telephone number if you need to reschedule.,SAFE,synthetic_demo
+Policy acknowledgement reminder,Please acknowledge the updated workplace safety policy through the employee portal by the end of this week.,SAFE,synthetic_demo
+Backup completion notice,The scheduled backup completed successfully. The operations team will review the routine backup report during business hours.,SAFE,synthetic_demo
+Workshop materials,The slides and exercises from today's workshop are available in the learning management system.,SAFE,synthetic_demo
+Contract review comments,Legal has added comments to the draft agreement. Please review the marked sections before the approval meeting.,SAFE,synthetic_demo
+Subscription cancellation confirmation,Your subscription cancellation request has been processed. Access will remain active until the end of the current billing period.,SAFE,synthetic_demo
+Address verification update,Your mailing address update has been saved. You can review your profile details through the official account settings page.,SAFE,synthetic_demo
+Service outage resolved,The temporary service interruption has been resolved. Our engineering team is monitoring system performance.,SAFE,synthetic_demo
+Claim your guaranteed lottery prize,You have won a guaranteed lottery prize. Pay the processing fee today to release your reward and claim your winnings immediately.,RESTRICTED,synthetic_demo
+Urgent password verification,Your mailbox will be suspended. Send your current password and one time verification code to this message to keep your account active.,RESTRICTED,synthetic_demo
+Bank account blocked,"Your bank account is blocked. Reply with your account number, card details, PIN and internet banking password to restore access.",RESTRICTED,synthetic_demo
+Unexpected inheritance payment,You are selected to receive an inheritance. Pay the transfer fee now so we can release your funds.,RESTRICTED,synthetic_demo
+Fake account security alert,Your account will be permanently suspended unless you verify your login credentials immediately by replying with your password.,RESTRICTED,synthetic_demo
+Guaranteed income offer,Earn money fast from home with guaranteed income. Pay a registration fee today to activate your high earning opportunity.,RESTRICTED,synthetic_demo
+Prize claim deadline,You have been chosen for a cash reward. Send your bank details within one hour or your prize will expire.,RESTRICTED,synthetic_demo
+MFA code theft,Our support team needs your one time authentication code. Send the verification code and password so we can prevent account closure.,RESTRICTED,synthetic_demo
+Urgent wire transfer request,Do not call me. Change the supplier bank details and transfer the payment immediately to this new account.,RESTRICTED,synthetic_demo
+Fake gift card giveaway,You have been selected for a free gift card. Claim your free gift card now by paying a small processing fee.,RESTRICTED,synthetic_demo
+Credential confirmation threat,Confirm your login credentials now or your account will be suspended. Reply with your password to avoid permanent closure.,RESTRICTED,synthetic_demo
+Advance fee reward,Pay the processing fee to claim your reward. Your guaranteed prize will be released after payment is received.,RESTRICTED,synthetic_demo
+Fake technical support,This is urgent IT support. Share your current email password and verification code so our team can keep your mailbox active.,RESTRICTED,synthetic_demo
+Card PIN collection,"To reactivate your bank account, provide your debit card number, PIN and internet banking password in your reply.",RESTRICTED,synthetic_demo
+Suspicious payment redirection,We have changed our bank details. Transfer the payment immediately and do not contact the finance department.,RESTRICTED,synthetic_demo
+Lottery winnings notification,Congratulations lottery winner. Claim your winnings by sending your bank account details and paying the release fee.,RESTRICTED,synthetic_demo
+Fake tax refund,Your tax refund is waiting. Provide your banking password and card PIN to receive the refund today.,RESTRICTED,synthetic_demo
+Impersonated executive demand,I am in a meeting. Do not call me. Transfer funds immediately to the account below and confirm once paid.,RESTRICTED,synthetic_demo
+Account suspension phishing,Your mailbox is at risk of permanent suspension. Verify your password and send your one time code now.,RESTRICTED,synthetic_demo
+Cash prize processing fee,You have been selected for a guaranteed cash prize. Pay the processing fee to claim your reward before the deadline.,RESTRICTED,synthetic_demo
+Fake parcel fee,Your parcel is on hold. Pay the release fee immediately using this unusual payment link to avoid losing the package.,RESTRICTED,synthetic_demo
+Investment scam,Earn guaranteed returns every day. Send your bank details and deposit funds now to activate your investment account.,RESTRICTED,synthetic_demo
+Password harvesting,Send your current password to our security team. We need your credentials to validate your account and prevent suspension.,RESTRICTED,synthetic_demo
+Fake charity urgency,Donate immediately to claim a guaranteed tax benefit. Send your card number and PIN to process the contribution.,RESTRICTED,synthetic_demo
+Prize account verification,"Your reward is ready for transfer. Reply with your account number, card details and banking password.",RESTRICTED,synthetic_demo
+Urgent invoice fraud,The payment account has changed. Transfer the invoice amount immediately and do not verify the change by phone.,RESTRICTED,synthetic_demo
+Fake job registration fee,You are selected for a high salary job. Pay the registration fee today to guarantee your employment offer.,RESTRICTED,synthetic_demo
+Verification code request,Share your one time verification code and authentication password with our support team to unlock your account.,RESTRICTED,synthetic_demo
+Fake bank warning,Your account is blocked due to suspicious activity. Reply with your card details and PIN to restore access.,RESTRICTED,synthetic_demo
+Advance payment inheritance,You have been selected to receive inheritance funds. Pay the transfer fee immediately to release the money.,RESTRICTED,synthetic_demo

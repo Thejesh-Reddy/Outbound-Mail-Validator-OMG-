@@ -14,7 +14,6 @@ class EmailRequest(BaseModel):
     body: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
     recipients: list[str] = Field(..., min_length=1, max_length=100)
-    attachments: list[dict] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")
     def require_email_content(self):
@@ -26,7 +25,7 @@ class EmailRequest(BaseModel):
 
     @property
     def inspection_content(self) -> str:
-        """Combined content used by text, URL and ML inspections."""
+        """Combined content used by text and URL inspections."""
         parts = [part.strip() for part in (self.body, self.html) if part and part.strip()]
         return "\n\n".join(parts)
 

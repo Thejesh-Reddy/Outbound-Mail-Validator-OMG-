@@ -1,65 +1,102 @@
-"""Runtime-editable text rules for outgoing email inspection."""
+"""Runtime inspection using the offline-generated TF-IDF pattern catalogue."""
+from __future__ import annotations
+
 import json
 import logging
 import re
+from functools import lru_cache
 from pathlib import Path
-from typing import Any
+
 from bs4 import BeautifulSoup
-from common.config import settings
-from common.exceptions import RuleConfigurationError
-from Content.pattern_catalog import get_catalog_summary
+from app import settings
 
 logger = logging.getLogger(__name__)
-DEFAULT_RULES = [
-    {"code": "LOTTERY_SCAM", "category": "FRAUD", "patterns": [r"\bclaim your lottery prize\b", r"\byou have won\b.*\bprize\b", r"\bclaim your winnings\b"]},
-    {"code": "CREDENTIAL_PHISHING", "category": "PHISHING", "patterns": [r"\bverify your password\b", r"\bconfirm your login credentials\b", r"\baccount will be suspended\b"]},
-    {"code": "UNSOLICITED_SPAM", "category": "SPAM", "patterns": [r"\bearn money fast\b", r"\bguaranteed income\b", r"\bact now\b.*\blimited offer\b"]},
-]
 
 
-def extract_email_text(subject: str, html: str) -> str:
-    soup = BeautifulSoup(html or "", "html.parser")
-    return f"{subject or ''}\n{soup.get_text(' ', strip=True)}"
+class PatternCatalogueUnavailable(RuntimeError):
+    """Raised when the generated pattern catalogue is missing or invalid."""
 
 
-def _load_runtime_rules() -> list[dict[str, Any]]:
-    path = settings.resolve_path(settings.RULES_PATH)
-    if not path.is_file():
-        logger.warning("Rule file %s not found; using safe built-in baseline rules", path)
-        return DEFAULT_RULES
+@lru_cache(maxsize=2)
+def _load_catalogue(path_string: str, modified_ns: int):
+    path = Path(path_string)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        rules = data.get("rules") if isinstance(data, dict) else None
-        if not isinstance(rules, list):
-            raise ValueError("'rules' must be a list")
-        for index, rule in enumerate(rules):
-            if not isinstance(rule, dict) or not all(isinstance(rule.get(k), str) and rule[k] for k in ("code", "category")):
-                raise ValueError(f"Rule {index} needs non-empty code and category")
-            if not isinstance(rule.get("patterns"), list) or not rule["patterns"]:
-                raise ValueError(f"Rule {index} needs a non-empty patterns list")
-            for pattern in rule["patterns"]:
-                if not isinstance(pattern, str):
-                    raise ValueError(f"Rule {index} patterns must be strings")
-                re.compile(pattern)
-        return rules
-    except (OSError, json.JSONDecodeError, ValueError, re.error) as exc:
-        raise RuleConfigurationError(f"Invalid runtime rule configuration at {path}: {exc}") from exc
+        if data.get("catalogue_version") != 1 or not isinstance(data.get("patterns"), list):
+            raise ValueError("Unsupported or malformed catalogue.")
+        return data
+    except Exception as exc:
+        raise PatternCatalogueUnavailable(
+            f"Could not load pattern catalogue ({type(exc).__name__})."
+        ) from exc
 
 
-def inspect_patterns(subject: str, html: str) -> list[dict]:
-    text = extract_email_text(subject, html)
-    findings, seen = [], set()
-    for rule in _load_runtime_rules():
-        for pattern in rule["patterns"]:
-            if re.search(pattern, text, flags=re.IGNORECASE | re.DOTALL):
-                key = (rule["code"], pattern)
-                if key not in seen:
-                    seen.add(key)
-                    findings.append({"code": rule["code"], "category": rule["category"],
-                                     "message": f"Matched configured suspicious-content rule: {rule['code']}."})
-                break
-    return findings
+def clear_catalogue_cache() -> None:
+    _load_catalogue.cache_clear()
 
 
-def get_rule_catalog_status() -> dict[str, int]:
-    return get_catalog_summary()
+def extract_email_text(subject: str, content: str) -> str:
+    visible = BeautifulSoup(content or "", "html.parser").get_text(" ", strip=True)
+    return re.sub(r"\s+", " ", f"{subject or ''} {visible}").strip().lower()
+
+
+def inspect_patterns(subject: str, content: str) -> list[dict]:
+    """Match learned SAFE/RESTRICTED n-gram patterns and estimate rule risk."""
+    path = settings.resolve_path(settings.PATTERN_CATALOG_PATH)
+    if not path.is_file():
+        raise PatternCatalogueUnavailable(f"Pattern catalogue not found: {path}")
+    catalogue = _load_catalogue(str(path), path.stat().st_mtime_ns)
+    text = extract_email_text(subject, content)
+    if not text:
+        return []
+
+    restricted_score = 0.0
+    safe_score = 0.0
+    matched_restricted: list[str] = []
+
+    for item in catalogue["patterns"]:
+        phrase = str(item.get("pattern") or "").strip().lower()
+        if not phrase:
+            continue
+        phrase_pattern = r"(?<!\w)" + re.escape(phrase) + r"(?!\w)"
+        if not re.search(phrase_pattern, text):
+            continue
+        weight = float(item.get("weight", 0.0))
+        if item.get("class") == "RESTRICTED":
+            restricted_score += weight
+            matched_restricted.append(phrase)
+        elif item.get("class") == "SAFE":
+            safe_score += weight
+
+    if not matched_restricted:
+        return []
+
+    # This is a deterministic pattern-evidence ratio, not a probability.
+    risk_score = 100.0 * restricted_score / (
+        restricted_score + safe_score + 1.0
+    )
+
+    if risk_score >= 65.0:
+        code = "LEARNED_PATTERN_RESTRICTED"
+        category = "SPAM"
+        message = (
+            f"Multiple learned restricted-content patterns matched "
+            f"({len(matched_restricted)} indicators; rule risk score {risk_score:.1f})."
+        )
+    elif risk_score >= 35.0:
+        code = "LEARNED_PATTERN_WARNING"
+        category = "SUSPICIOUS_CONTENT"
+        message = (
+            f"Learned suspicious-content patterns matched; manual review is "
+            f"recommended (rule risk score {risk_score:.1f})."
+        )
+    else:
+        return []
+
+    return [{
+        "code": code,
+        "category": category,
+        "message": message,
+        "risk_score": round(risk_score, 2),
+        "matched_pattern_count": len(matched_restricted),
+    }]
