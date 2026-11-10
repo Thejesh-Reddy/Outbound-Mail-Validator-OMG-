@@ -1,1 +1,1 @@
-"""OMG inspection module."""
+"""OMG merged backend package."""

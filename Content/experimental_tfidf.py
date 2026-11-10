@@ -8,7 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 
 from bs4 import BeautifulSoup
-from app import settings
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +41,7 @@ def extract_email_text(subject: str, content: str) -> str:
 
 def inspect_patterns(subject: str, content: str) -> list[dict]:
     """Match learned SAFE/RESTRICTED n-gram patterns and estimate rule risk."""
-    path = settings.resolve_path(settings.PATTERN_CATALOG_PATH)
+    path = Path(__file__).resolve().parent / "legacy_tfidf_catalog.json"
     if not path.is_file():
         raise PatternCatalogueUnavailable(f"Pattern catalogue not found: {path}")
     catalogue = _load_catalogue(str(path), path.stat().st_mtime_ns)
