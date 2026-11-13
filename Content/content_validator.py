@@ -7,6 +7,7 @@ from .rule_checks import inspect_patterns
 from .contextual_risk import inspect_contextual_risks
 from .html_inspection import inspect_html_content
 from .classifier import classify_email
+from .fraud_detection import SCAM_CATEGORIES, inspect_fraud_patterns
 from .config import settings
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,8 @@ def validate_content(subject: str, body: str = "", html: str = "") -> dict:
     findings = []
     coverage = {"runtime_text_rules": "complete", "html_inspection": "complete", "ml_classifier": "disabled_optional"}
     for name, fn in (("runtime_text_rules",lambda: inspect_patterns(subject,combined)),
-                     ("html_inspection",lambda: inspect_html_content(subject,html or body))):
+                     ("html_inspection",lambda: inspect_html_content(subject,html or body)),
+                     ("fraud_pattern_detection",lambda: inspect_fraud_patterns(subject,body,html))):
         try:
             result = fn()
             if not isinstance(result,list):raise TypeError("Invalid inspection response")
@@ -89,7 +91,7 @@ def validate_content(subject: str, body: str = "", html: str = "") -> dict:
             coverage["experimental_tfidf"] = "optional_unavailable"
     else:
         coverage["experimental_tfidf"] = "disabled_optional"
-    model_version="rules-baseline-v1"
+    model_version="rules-plus-fraud-patterns-v2"
     if settings.ENABLE_ML or settings.REQUIRE_ML:
         try:
             ml = classify_email(subject,combined)
@@ -119,5 +121,6 @@ def validate_content(subject: str, body: str = "", html: str = "") -> dict:
         logger.exception("Contextual signal scoring failed")
         penalty = 0.0
         coverage["contextual_signals"] = "optional_unavailable"
+    detected_categories = sorted({str(item.get("category")) for item in findings if item.get("category") in SCAM_CATEGORIES})
     return {"findings":findings,"coverage":coverage,"model_version":model_version,
-            "context_penalty":penalty}
+            "context_penalty":penalty,"detected_scam_categories":detected_categories}

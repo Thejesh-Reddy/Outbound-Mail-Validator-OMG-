@@ -14,7 +14,7 @@ def _as_bool(value: str | None, default: bool = False) -> bool:
 
 class Settings:
     APP_NAME = "OMG - Outbound Mail Gatekeeper"
-    APP_VERSION = "3.2.0"
+    APP_VERSION = "3.3.0"
     API_PREFIX = os.getenv("OMG_API_PREFIX", "/api/v1").rstrip("/") or "/api/v1"
     ENVIRONMENT = os.getenv("OMG_ENVIRONMENT", os.getenv("OMG_ENV", "development")).strip().lower()
     RULES_PATH = Path(os.getenv("OMG_RULES_PATH", "Content/data/omg_rules.json"))
