@@ -1,0 +1,64 @@
+
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Content/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.URL/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Attachments/__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+
+# ==============================
+# Virtual environments
+# ==============================
+venv/
+.venv/
+env/
+ENV/
+
+# ==============================
+# Environment variables and secrets
+# ==============================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+
+# ==============================
+# IDE and editor
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# Logs
+# ==============================
+*.log
+logs/
+
+# ==============================
+# Temporary files
+# ==============================
+tmp/
+temp/
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
