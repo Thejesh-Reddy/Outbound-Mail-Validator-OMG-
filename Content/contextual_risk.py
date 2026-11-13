@@ -1,5 +1,4 @@
 
-
 """Conservative, explainable outbound-email social-engineering checks.
 
 
@@ -20,8 +19,6 @@ import re
 
 from bs4 import BeautifulSoup
 
-
-
 _MAX = 100_000
 
 
@@ -31,10 +28,6 @@ _MAX = 100_000
 def _has(pattern: str, text: str) -> bool:
 
     return bool(re.search(pattern, text, re.IGNORECASE | re.DOTALL))
-
-
-
-
 
 def _normalize(subject: str, body: str, html: str) -> str:
 
@@ -75,6 +68,12 @@ def inspect_contextual_risks(
     """Find explicit threats, credential requests and social-engineering risks."""
 
 
+def inspect_contextual_risks(
+    subject: str,
+    body: str,
+    html: str = ""
+) -> list[dict[str, object]]:
+    """Find explicit threats, credential requests and social-engineering risks."""
 
     text = _normalize(subject, body, html)
 
