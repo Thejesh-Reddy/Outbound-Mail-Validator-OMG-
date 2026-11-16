@@ -124,3 +124,4 @@ def validate_content(subject: str, body: str = "", html: str = "") -> dict:
     detected_categories = sorted({str(item.get("category")) for item in findings if item.get("category") in SCAM_CATEGORIES})
     return {"findings":findings,"coverage":coverage,"model_version":model_version,
             "context_penalty":penalty,"detected_scam_categories":detected_categories}
+
