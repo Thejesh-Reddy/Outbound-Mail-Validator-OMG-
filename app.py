@@ -92,6 +92,7 @@ from database import (
 )
 
 from db_repository import save_analysis
+from json_view import router as json_view_router
 
 
 # ---------------------------------------------------------
@@ -235,6 +236,39 @@ app.add_middleware(RequestLoggingMiddleware)
 
 _PREFIX = settings.API_PREFIX
 
+# LOCAL FRONTEND TESTING ONLY: allow a developer to view one known account's
+# existing Insights records without waiting for the host application's JWT
+# middleware. This is disabled by default and is restricted to loopback clients.
+@app.middleware("http")
+async def local_insights_test_identity(request: Request, call_next):
+    insights_prefix = f"{_PREFIX}/omg_insights_view"
+    is_insights_request = (
+        request.url.path == insights_prefix
+        or request.url.path.startswith(insights_prefix + "/")
+    )
+    is_local_validation_request = request.url.path == f"{_PREFIX}/analyze"
+    test_mode = os.getenv("OMG_INSIGHTS_DEV_TEST_MODE", "false").strip().lower()
+    test_account_id = os.getenv("OMG_INSIGHTS_TEST_ACCOUNT_ID", "").strip()
+    client_host = request.client.host if request.client else ""
+    is_loopback = client_host in {"127.0.0.1", "::1", "localhost", "testclient"}
+
+    if (
+        (is_insights_request or is_local_validation_request)
+        and test_mode in {"1", "true", "yes", "on"}
+        and test_account_id
+        and not settings.is_production
+        and is_loopback
+    ):
+        # This identity is supplied only by local server configuration, never
+        # by a browser query parameter or request body.
+        request.state.account_id = test_account_id
+
+    return await call_next(request)
+
+# Separate Validation Insights API. Production account isolation requires the
+# host application's verified authentication middleware.
+app.include_router(json_view_router, prefix=_PREFIX)
+
 
 # ---------------------------------------------------------
 # OPERATIONAL ENDPOINTS
@@ -247,6 +281,20 @@ def mail_portal():
         Path(__file__).resolve().parent
         / "frontend/index.html"
     )
+
+
+@app.get("/json_view", include_in_schema=False)
+def validation_history_page():
+    """Serve the Excel-like Validation Insights frontend at the trainer-required URL."""
+    return FileResponse(
+        Path(__file__).resolve().parent / "frontend/history.html"
+    )
+
+
+@app.get("/history", include_in_schema=False)
+def validation_history_legacy_page():
+    """Backward-compatible alias for the previous history page URL."""
+    return validation_history_page()
 
 
 @app.get("/", include_in_schema=False)
@@ -1622,13 +1670,22 @@ async def analyze(request: Request):
             "x-request-id"
         )
 
-        # Current API-key authentication does not identify
-        # individual application users. Use a fixed account
-        # label until the existing user authentication
-        # dependency is connected to this endpoint.
+        # When the host application's verified authentication
+        # middleware is integrated, it must populate this value.
+        # Keep the legacy API-key account as a compatibility fallback
+        # so existing API-key validation behavior is not disrupted.
+        authenticated_account_id = getattr(
+            request.state, "account_id", None
+        )
+        account_id = (
+            str(authenticated_account_id)
+            if authenticated_account_id
+            else "api-key-client"
+        )
+
         save_result = await run_in_threadpool(
             save_analysis,
-            account_id="api-key-client",
+            account_id=account_id,
             analysis_result=final_result,
             email_data=email_data,
             request_id=request_id,

@@ -189,7 +189,7 @@
   <main class="main">
     <header class="topbar">
       <div><div class="top-title" id="folderTitle">Inbox</div><div class="top-subtitle" id="folderSub">Example mailbox · not synchronized with an email provider</div></div>
-      <div class="topright"><span class="connection" id="connection">API not checked</span><button type="button" class="topbtn" id="checkApi">Check API</button><button type="button" class="topbtn" id="settingsBtn">⚙ Settings</button></div>
+      <div class="topright"><span class="connection" id="connection">API not checked</span><button type="button" class="topbtn" id="insightsBtn">Insights</button><button type="button" class="topbtn" id="checkApi">Check API</button><button type="button" class="topbtn" id="settingsBtn">⚙ Settings</button></div>
     </header>
     <div class="workspace">
       <div class="banner"><span><strong>One OMG validation endpoint.</strong> URLs are automatically extracted from your subject and body; attachments are uploaded as binary files. Click <strong>Send email</strong> to validate, then simulate a send (or use your configured real mail gateway).</span><span id="modeTag" class="sectionpill">DEMO SEND MODE</span></div>
@@ -561,6 +561,7 @@ QA Team</textarea></div>
   $('saveDraft').addEventListener('click',saveDraft);
   $('clearCompose').addEventListener('click',clearCompose);
   $('newMail').addEventListener('click',()=>{clearCompose();$('composePanel').scrollIntoView({behavior:'smooth',block:'start'});$('to').focus()});
+  $('insightsBtn').addEventListener('click',()=>{window.location.assign('/json_view')});
   $('checkApi').addEventListener('click',checkApi);
   $('settingsBtn').addEventListener('click',openSettings);
   $('closeSettings').addEventListener('click',closeSettings);
