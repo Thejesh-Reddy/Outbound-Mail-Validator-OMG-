@@ -34,7 +34,7 @@ def get_analysis_collection():
 
 def save_analysis(account_id: str, analysis_result: dict,
                   email_data: dict = None,
-                  request_id: str = None):
+                  request_id: str = None, user_email: str = None):
     """
     Save an analysis result.
 
@@ -52,6 +52,7 @@ def save_analysis(account_id: str, analysis_result: dict,
 
     document = {
         "account_id": str(account_id),
+        "user_email": user_email,
         "request_id": request_id,
         "email": {
             "from": email_data.get("from"),

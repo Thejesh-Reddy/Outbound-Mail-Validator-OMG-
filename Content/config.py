@@ -1,3 +1,4 @@
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,14 +17,22 @@ class Settings:
     APP_NAME = "OMG - Outbound Mail Gatekeeper"
     APP_VERSION = "3.3.0"
     API_PREFIX = os.getenv("OMG_API_PREFIX", "/api/v1").rstrip("/") or "/api/v1"
-    ENVIRONMENT = os.getenv("OMG_ENVIRONMENT", os.getenv("OMG_ENV", "development")).strip().lower()
+    ENVIRONMENT = os.getenv(
+        "OMG_ENVIRONMENT",
+        os.getenv("OMG_ENV", "development")
+    ).strip().lower()
+
     RULES_PATH = Path(os.getenv("OMG_RULES_PATH", "Content/data/omg_rules.json"))
     MODEL_PATH = Path(os.getenv("OMG_MODEL_PATH", "Content/models/email_classifier.joblib"))
+
     REQUIRE_ML = _as_bool(os.getenv("OMG_REQUIRE_ML"), default=False)
     ENABLE_ML = _as_bool(os.getenv("OMG_ENABLE_ML"), default=False)
-    ENABLE_EXPERIMENTAL_TFIDF = _as_bool(os.getenv("OMG_ENABLE_EXPERIMENTAL_TFIDF"), default=False)
+    ENABLE_EXPERIMENTAL_TFIDF = _as_bool(
+        os.getenv("OMG_ENABLE_EXPERIMENTAL_TFIDF"),
+        default=False
+    )
+
     ML_MIN_CONFIDENCE = float(os.getenv("OMG_ML_MIN_CONFIDENCE", "0.60"))
-    API_KEY = os.getenv("OMG_API_KEY", "").strip()
     LOG_LEVEL = os.getenv("OMG_LOG_LEVEL", "INFO").upper()
     MAX_REQUEST_BYTES = int(os.getenv("OMG_MAX_REQUEST_BYTES", "65000000"))
 
@@ -41,20 +50,34 @@ class Settings:
             return
 
         errors = []
+
         if not 0.5 <= self.ML_MIN_CONFIDENCE <= 0.99:
-            errors.append("OMG_ML_MIN_CONFIDENCE must be between 0.50 and 0.99")
-        if len(self.API_KEY) < 32:
-            errors.append("OMG_API_KEY must be configured with at least 32 characters")
+            errors.append(
+                "OMG_ML_MIN_CONFIDENCE must be between 0.50 and 0.99"
+            )
+
         if not self.REQUIRE_ML:
             errors.append("OMG_REQUIRE_ML must be true in production")
+
         if not self.resolve_path(self.MODEL_PATH).is_file():
-            errors.append(f"trained ML model not found: {self.resolve_path(self.MODEL_PATH)}")
+            errors.append(
+                f"trained ML model not found: {self.resolve_path(self.MODEL_PATH)}"
+            )
+
         if not self.resolve_path(self.RULES_PATH).is_file():
-            errors.append(f"runtime rules file not found: {self.resolve_path(self.RULES_PATH)}")
+            errors.append(
+                f"runtime rules file not found: {self.resolve_path(self.RULES_PATH)}"
+            )
+
         if self.MAX_REQUEST_BYTES < 1024:
-            errors.append("OMG_MAX_REQUEST_BYTES must be at least 1024")
+            errors.append(
+                "OMG_MAX_REQUEST_BYTES must be at least 1024"
+            )
+
         if errors:
-            raise RuntimeError("Invalid production configuration: " + "; ".join(errors))
+            raise RuntimeError(
+                "Invalid production configuration: " + "; ".join(errors)
+            )
 
 
 settings = Settings()

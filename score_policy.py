@@ -20,19 +20,14 @@ DEEP_INVESTIGATION_THRESHOLD = 75.0
 MIN_SCORE = 0.0
 MAX_SCORE = 100.0
 
-# Highest score a module may have while still carrying an actionable finding.
-# Scores are reported to one decimal place, so a WARNING must stay below 85.0
-# even after rounding.
+# Highest score a module may have while still carrying an actionable finding. Scores are reported to one decimal place, so a WARNING must stay below 85.0 even after rounding.
 WARNING_CEILING = round(SAFE_THRESHOLD - 0.1, 2)
 
-# Deterministic score assigned to a module whose validator returned RESTRICTED
-# without any itemized finding to derive a score from.
+# Deterministic score assigned to a module whose validator returned RESTRICTED without any itemized finding to derive a score from.
 RESTRICTED_MODULE_SCORE = 29.99
 
-# Risk points per finding. Confirmed findings use the full value; unconfirmed
-# findings are scaled by detector confidence. The values are deliberately
-# spread so the reported score moves with severity instead of snapping to a
-# fixed value per verdict.
+# Risk points per finding. Confirmed findings use the full value; unconfirmed findings are scaled by detector confidence. The values are deliberately spread so the reported score moves with severity instead of snapping to a fixed value per verdict.
+
 RISK_POINTS = {
     "INFO": 0,
     "LOW": 12,
@@ -41,9 +36,7 @@ RISK_POINTS = {
     "CRITICAL": 60,
 }
 
-# Each verdict owns a score range. The risk index is projected into that range,
-# so the reported number always agrees with the policy verdict while remaining
-# a continuous function of severity, confidence and finding count.
+# Each verdict owns a score range. The risk index is projected into that range, so the reported number always agrees with the policy verdict while remaining a continuous function of severity, confidence and finding count.
 SCORE_PROJECTION = {
     "RESTRICTED": (0.0, round(WARNING_THRESHOLD - 0.1, 2)),
     "WARNING": (WARNING_THRESHOLD, WARNING_CEILING),
@@ -54,25 +47,19 @@ SCORE_PROJECTION = {
 RESTRICTED_RISK_SCALE = 150.0
 WARNING_RISK_SCALE = 30.0
 
-# Risk assumed for an upstream validator that reports RESTRICTED/WARNING with
-# no itemized findings (for example an attachment policy block).
+# Risk assumed for an upstream validator that reports RESTRICTED/WARNING with no itemized findings (for example an attachment policy block).
 POLICY_RESTRICTED_RISK = 90.0
 POLICY_WARNING_RISK = 12.0
 
 # Maximum benign-context deduction applied to a clean module score.
 MAX_CONTEXT_PENALTY = 15.0
 
-# Overall-score aggregation. The worst module anchors the overall risk; the
-# remaining modules contribute at reduced weight, and every extra module below
-# the SAFE threshold adds corroborating risk. Module scores are unaffected.
+# Overall-score aggregation. The worst module anchors the overall risk; the remaining modules contribute at reduced weight, and every extra module below the SAFE threshold adds corroborating risk. Module scores are unaffected.
 OVERALL_CORROBORATION_FACTOR = 0.25
 OVERALL_EXTRA_MODULE_RISK = 2.5
 
-# Overall warnings combine corroborating module evidence, so their risk index
-# is larger than any single module's. A scale anchored to one HIGH finding
-# keeps the overall score spread across 75-84.9 instead of every multi-finding
-# warning saturating at the 75.0 floor. Module scores continue to use
-# WARNING_RISK_SCALE.
+# Overall warnings combine corroborating module evidence, so their risk index is larger than any single module's. A scale anchored to one HIGH finding keeps the overall score spread across 75-84.9 instead of every multi-finding warning saturating at the 75.0 floor. Module scores continue to use WARNING_RISK_SCALE.
+
 OVERALL_WARNING_RISK_SCALE = 45.0
 
 
@@ -121,8 +108,7 @@ def project_overall_score(risk_points, verdict):
     )
 
 
-# Score bands for display. Each verdict owns a disjoint half-open range:
-# [0,75) RESTRICTED, [75,85) WARNING, [85,100] SAFE.
+# Score bands for display. Each verdict owns a disjoint half-open range:  [0,74.99] RESTRICTED, [75,84.99] WARNING, [85,100] SAFE.
 BANDS = {
     "RESTRICTED": (0.0, WARNING_THRESHOLD),
     "WARNING": (WARNING_THRESHOLD, SAFE_THRESHOLD),
@@ -191,8 +177,9 @@ def clamp_to_status(status, score):
         raise ValueError("Score must be a finite number.")
 
     lower, upper = BANDS[status]
-    # Reported scores use one decimal place; keep a non-SAFE score strictly
-    # inside its own band so it can never display as the next verdict's floor.
+
+    # Reported scores use one decimal place; keep a non-SAFE score strictly inside its own band so it can never display as the next verdict's floor.
+    
     upper_inclusive = upper if status == "SAFE" else round(upper - 0.1, 2)
     return round(min(max(float(score), lower), upper_inclusive), 2)
 

@@ -1,8 +1,12 @@
+
 """
 Merged OMG application with MongoDB persistence.
 
 Business endpoint:
     POST /api/v1/analyze
+
+Authorization endpoint:
+    POST /api/v1/authorization
 
 Accepts:
     application/json
@@ -14,14 +18,20 @@ Validates:
     Binary attachments
 
 MongoDB:
-    Saves completed analysis results.
+    Saves completed analysis results against the logged-in account.
 
 This backend validates emails but NEVER sends emails.
 """
 
 from __future__ import annotations
 
-import hmac
+from datetime import datetime, timezone, timedelta
+from typing import Optional
+from fastapi import Depends, HTTPException, Query
+from bson import ObjectId
+import csv
+import io
+import re
 import json
 import logging
 import os
@@ -37,16 +47,15 @@ from fastapi import (
     Request,
     HTTPException,
     Depends,
-    Header,
 )
 
-from fastapi.responses import JSONResponse, FileResponse
-
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from pydantic import ValidationError
 
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
 
 # ---------------------------------------------------------
 # ENVIRONMENT CONFIGURATION
@@ -83,15 +92,23 @@ from URL.url_validator import validate_urls
 
 
 # ---------------------------------------------------------
-# NEW MONGODB MODULES
+# MONGODB MODULES
 # ---------------------------------------------------------
 
 from database import (
+    users_collection,
+    sessions_collection,
+    analysis_collection,
     connect_to_mongodb,
-    close_mongodb_connection,
+    client,
 )
 
-from db_repository import save_analysis
+from db_repository import save_analysis, get_account_history
+
+from auth import (
+    router as auth_router,
+    get_current_user,
+)
 
 
 # ---------------------------------------------------------
@@ -130,47 +147,6 @@ class CompactJSONResponse(JSONResponse):
 
 
 # ---------------------------------------------------------
-# API KEY AUTHENTICATION
-# ---------------------------------------------------------
-
-async def require_api_key(
-    request: Request,
-    x_omg_api_key: str | None = Header(None),
-    x_api_key: str | None = Header(None),
-) -> None:
-
-    """Retain both existing authentication header names."""
-
-    expected = settings.API_KEY
-
-    if expected:
-
-        supplied = x_omg_api_key or x_api_key or ""
-
-        if not hmac.compare_digest(supplied, expected):
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid or missing API key",
-            )
-
-    elif settings.is_production:
-
-        raise HTTPException(
-            status_code=503,
-            detail="API key not configured",
-        )
-
-    elif (
-        request.client.host if request.client else ""
-    ) not in {"127.0.0.1", "::1", "testclient"}:
-
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthenticated access permitted only for local development",
-        )
-
-
-# ---------------------------------------------------------
 # APPLICATION LIFESPAN AND MONGODB
 # ---------------------------------------------------------
 
@@ -179,7 +155,7 @@ async def lifespan(app: FastAPI):
 
     settings.validate_production_configuration()
 
-    # Connect to MongoDB when the application starts.
+    # Verify MongoDB connection when the application starts.
     await run_in_threadpool(connect_to_mongodb)
 
     logger.info("OMG MongoDB connection initialized")
@@ -206,8 +182,8 @@ async def lifespan(app: FastAPI):
 
     finally:
 
-        # Close MongoDB when the application stops.
-        await run_in_threadpool(close_mongodb_connection)
+        # Close the MongoDB client when the application stops.
+        await run_in_threadpool(client.close)
 
         logger.info("OMG MongoDB connection closed")
 
@@ -233,6 +209,10 @@ app = FastAPI(
 
 app.add_middleware(RequestLoggingMiddleware)
 
+# Register the consolidated Authorization router exactly once.
+# auth.py defines the complete /api/v1/authorization path.
+app.include_router(auth_router)
+
 _PREFIX = settings.API_PREFIX
 
 
@@ -249,19 +229,19 @@ def mail_portal():
     )
 
 
+FRONTEND_DIR = Path(__file__).resolve().parent / "frontend"
+
 @app.get("/", include_in_schema=False)
-def service_root() -> dict:
+async def service_root():
+    portal_file = FRONTEND_DIR / "index.html"
 
-    return {
-        "service": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "message": (
-            "OMG email validation backend is running; "
-            "mail delivery is not implemented."
-        ),
-        "docs": None if settings.is_production else "/docs",
-    }
+    if not portal_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Portal frontend/index.html not found."
+        )
 
+    return FileResponse(portal_file)
 
 @app.get("/health", include_in_schema=False)
 @app.get(f"{_PREFIX}/health", include_in_schema=False)
@@ -342,12 +322,12 @@ def readiness_check():
 @app.get(
     "/status",
     include_in_schema=False,
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(get_current_user)],
 )
 @app.get(
     f"{_PREFIX}/status",
     include_in_schema=False,
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(get_current_user)],
 )
 def service_status() -> dict:
 
@@ -1420,7 +1400,7 @@ _ANALYZE_REQUEST_BODY = {
 
                 "required": [
                     "subject",
-                    "recipients",
+                    # "recipients",
                 ],
 
                 "properties": {
@@ -1471,7 +1451,7 @@ _ANALYZE_REQUEST_BODY = {
 
                 "required": [
                     "subject",
-                    "recipients",
+                    # "recipients",
                 ],
 
                 "properties": {
@@ -1524,6 +1504,11 @@ _ANALYZE_REQUEST_BODY = {
 # SINGLE BUSINESS ENDPOINT: ANALYZE EMAIL
 # ---------------------------------------------------------
 
+
+# ---------------------------------------------------------
+# SINGLE BUSINESS ENDPOINT: ANALYZE EMAIL
+# ---------------------------------------------------------
+
 @app.post(
     f"{_PREFIX}/analyze",
     tags=["Email Validation"],
@@ -1531,14 +1516,14 @@ _ANALYZE_REQUEST_BODY = {
         "Email Validation — subject, body, URLs "
         "and optional attachments"
     ),
-    dependencies=[
-        Depends(require_api_key)
-    ],
     openapi_extra={
         "requestBody": _ANALYZE_REQUEST_BODY
     },
 )
-async def analyze(request: Request):
+async def analyze(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
 
     content_type = (
         request.headers.get("content-type", "")
@@ -1548,15 +1533,17 @@ async def analyze(request: Request):
     )
 
     uploaded_files = []
-
     email_data = {}
+
+    # Get authenticated account information
+    account_id = str(current_user["id"])
+    user_email = current_user["email"]
 
     # ---------------- JSON REQUEST ----------------
 
     if content_type == "application/json":
 
         try:
-
             payload = await request.json()
 
         except (ValueError, UnicodeError):
@@ -1573,9 +1560,11 @@ async def analyze(request: Request):
                 detail="JSON root must be an object",
             )
 
+        # Recipients are optional.
+        payload["recipients"] = payload.get("recipients") or []
         email_data = {
             "from": payload.get("from"),
-            "to": payload.get("recipients", []),
+            "to": payload["recipients"],
             "subject": payload.get("subject"),
             "body": payload.get("body"),
         }
@@ -1595,7 +1584,7 @@ async def analyze(request: Request):
 
         email_data = {
             "from": payload.get("from"),
-            "to": payload.get("recipients", []),
+            "to": payload.get("recipients") or [],
             "subject": payload.get("subject"),
             "body": payload.get("body"),
         }
@@ -1614,24 +1603,27 @@ async def analyze(request: Request):
             ),
         )
 
+    # ---------------- ADD ACCOUNT DETAILS ----------------
+
+    # Add authenticated account information to API response.
+    final_result["account_id"] = account_id
+    final_result["user_email"] = user_email
+
+    # ---------------- REQUEST ID ----------------
+
+    request_id = request.headers.get("x-request-id")
+
     # ---------------- SAVE RESULT IN MONGODB ----------------
 
     try:
 
-        request_id = request.headers.get(
-            "x-request-id"
-        )
-
-        # Current API-key authentication does not identify
-        # individual application users. Use a fixed account
-        # label until the existing user authentication
-        # dependency is connected to this endpoint.
         save_result = await run_in_threadpool(
             save_analysis,
-            account_id="api-key-client",
+            account_id=account_id,
             analysis_result=final_result,
             email_data=email_data,
             request_id=request_id,
+            user_email=user_email,
         )
 
         logger.info(
@@ -1653,9 +1645,545 @@ async def analyze(request: Request):
             ),
         )
 
-    # ---------------- RETURN ORIGINAL RESPONSE ----------------
+    # ---------------- RETURN RESPONSE ----------------
 
     return final_result
 
+def make_json_safe(value):
+    if isinstance(value, dict):
+        return {
+            key: make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [make_json_safe(item) for item in value]
+
+    if isinstance(value, ObjectId):
+        return str(value)
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    return value
 
 
+
+# =========================================================
+# JSON VIEW ENDPOINT
+# =========================================================
+
+@app.get(f"{_PREFIX}/json_view", tags=["Validation History"])
+async def json_view(
+    view: str = Query("records"),
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query("ALL"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    sort_by: str = Query("created_at"),
+    order: str = Query("desc"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    fields: Optional[str] = Query("all"),
+    record_id: Optional[str] = Query(None),
+    export: Optional[str] = Query(None),
+    account_id: Optional[str] = Query(None)
+):
+    collection = analysis_collection
+
+    # -----------------------------------------
+    # VIEW VALIDATION
+    # -----------------------------------------
+    view = (view or "records").strip().lower()
+
+    if view not in ["records", "users"]:
+        raise HTTPException(
+            status_code=400,
+            detail="View must be records or users"
+        )
+
+    # -----------------------------------------
+    # PUBLIC DATABASE QUERY
+    # -----------------------------------------
+    # No authentication or account restriction.
+    # All records are included unless filtered.
+
+    query = {}
+
+    if account_id and account_id.strip():
+        query["account_id"] = account_id.strip()
+
+    # -----------------------------------------
+    # RECORD ID FILTER
+    # -----------------------------------------
+    if record_id:
+        if view == "users":
+            raise HTTPException(
+                status_code=400,
+                detail="record_id filter is available only in records view"
+            )
+
+        if not ObjectId.is_valid(record_id):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid MongoDB record ID"
+            )
+
+        query["_id"] = ObjectId(record_id)
+
+    # -----------------------------------------
+    # STATUS FILTER
+    # -----------------------------------------
+    status = (status or "ALL").strip().upper()
+
+    if status != "ALL":
+        if status not in ["SAFE", "WARNING", "RESTRICTED"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Status must be ALL, SAFE, WARNING or RESTRICTED"
+            )
+
+        query["status"] = status
+
+    # -----------------------------------------
+    # DATE FILTER - DD-MM-YYYY
+    # -----------------------------------------
+    if start_date or end_date:
+        date_filter = {}
+
+        try:
+            if start_date:
+                start = datetime.strptime(
+                    start_date, "%d-%m-%Y"
+                ).replace(tzinfo=timezone.utc)
+
+                date_filter["$gte"] = start
+
+            if end_date:
+                end = datetime.strptime(
+                    end_date, "%d-%m-%Y"
+                ).replace(tzinfo=timezone.utc)
+
+                date_filter["$lt"] = end + timedelta(days=1)
+
+            if (
+                start_date
+                and end_date
+                and date_filter["$gte"] >= date_filter["$lt"]
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="End date must not be before start date"
+                )
+
+            query["created_at"] = date_filter
+
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Use date format DD-MM-YYYY"
+            )
+
+    # -----------------------------------------
+    # SEARCH FILTER
+    # -----------------------------------------
+    if search and search.strip():
+        search_pattern = re.escape(search.strip())
+
+        search_conditions = [
+            {
+                "user_email": {
+                    "$regex": search_pattern,
+                    "$options": "i"
+                }
+            },
+            {
+                "email.subject": {
+                    "$regex": search_pattern,
+                    "$options": "i"
+                }
+            },
+            {
+                "status": {
+                    "$regex": search_pattern,
+                    "$options": "i"
+                }
+            }
+        ]
+
+        if view == "users":
+            query["user_email"] = {
+                "$regex": search_pattern,
+                "$options": "i"
+            }
+        else:
+            query["$or"] = search_conditions
+
+    # -----------------------------------------
+    # EXPORT VALIDATION
+    # -----------------------------------------
+    if export:
+        export = export.strip().lower()
+
+        if export != "csv":
+            raise HTTPException(
+                status_code=400,
+                detail="Export format must be csv"
+            )
+
+        if view == "users":
+            raise HTTPException(
+                status_code=400,
+                detail="CSV export is available only in records view"
+            )
+
+    # -----------------------------------------
+    # FIELD SELECTION
+    # -----------------------------------------
+    allowed_fields = {
+        "record_id",
+        "account_id",
+        "user_email",
+        "request_id",
+        "email.from",
+        "email.to",
+        "email.subject",
+        "email.body",
+        "status",
+        "confidence_score",
+        "can_send",
+        "requires_acknowledgement",
+        "score_contributions",
+        "text",
+        "url",
+        "attachments",
+        "errors",
+        "created_at"
+    }
+
+    if view == "users":
+        selected_fields = ["user_email"]
+
+    elif fields is None or fields.strip().lower() == "all":
+        selected_fields = None
+
+    elif fields.strip().lower() in ["none", ""]:
+        selected_fields = ["record_id"]
+
+    else:
+        selected_fields = list(dict.fromkeys(
+            field.strip()
+            for field in fields.split(",")
+            if field.strip()
+        ))
+
+        invalid_fields = [
+            field for field in selected_fields
+            if field not in allowed_fields
+        ]
+
+        if invalid_fields:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Invalid field selection",
+                    "invalid_fields": invalid_fields,
+                    "allowed_fields": sorted(allowed_fields)
+                }
+            )
+
+        if "record_id" not in selected_fields:
+            selected_fields.insert(0, "record_id")
+
+    # -----------------------------------------
+    # SORTING
+    # -----------------------------------------
+    allowed_sort_fields = [
+        "created_at",
+        "status",
+        "confidence_score",
+        "email.subject",
+        "user_email"
+    ]
+
+    if sort_by not in allowed_sort_fields:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid sort field"
+        )
+
+    order = order.strip().lower()
+
+    if order not in ["asc", "desc"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Order must be asc or desc"
+        )
+
+    sort_direction = 1 if order == "asc" else -1
+
+    # =====================================================
+    # UNIQUE USERS VIEW
+    # =====================================================
+    if view == "users":
+
+        def fetch_unique_users():
+            pipeline = [
+                {"$match": query},
+                {
+                    "$group": {
+                        "_id": "$user_email"
+                    }
+                },
+                {
+                    "$match": {
+                        "_id": {
+                            "$type": "string",
+                            "$ne": ""
+                        }
+                    }
+                },
+                {
+                    "$sort": {
+                        "_id": sort_direction
+                    }
+                }
+            ]
+
+            total_users = len(
+                list(collection.aggregate(pipeline + [
+                    {"$count": "total"}
+                ]))
+            )
+
+            users = list(
+                collection.aggregate(
+                    pipeline + [
+                        {"$skip": (page - 1) * page_size},
+                        {"$limit": page_size},
+                        {
+                            "$project": {
+                                "_id": 0,
+                                "user_email": "$_id"
+                            }
+                        }
+                    ]
+                )
+            )
+
+            return total_users, users
+
+        total_users, users = await run_in_threadpool(
+            fetch_unique_users
+        )
+
+        total_pages = (
+            (total_users + page_size - 1) // page_size
+            if total_users else 0
+        )
+
+        return {
+            "success": True,
+            "view": "users",
+            "total_users": total_users,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "records": users
+        }
+
+    # =====================================================
+    # RECORDS VIEW
+    # =====================================================
+
+    # -----------------------------------------
+    # MONGODB QUERY
+    # -----------------------------------------
+    def fetch_records():
+        total = collection.count_documents(query)
+
+        cursor = collection.find(query).sort(
+            sort_by, sort_direction
+        )
+
+        # CSV exports all matching records.
+        if export != "csv":
+            if record_id:
+                cursor = cursor.limit(1)
+            else:
+                cursor = cursor.skip(
+                    (page - 1) * page_size
+                ).limit(page_size)
+
+        return total, list(cursor)
+
+    total_records, records = await run_in_threadpool(
+        fetch_records
+    )
+
+    # -----------------------------------------
+    # FORMAT RECORDS
+    # -----------------------------------------
+    formatted_records = []
+
+    for record in records:
+        record["record_id"] = str(record.pop("_id"))
+        formatted_records.append(make_json_safe(record))
+
+    # -----------------------------------------
+    # NESTED FIELD HELPERS
+    # -----------------------------------------
+    def get_nested_value(data, field_path):
+        value = data
+
+        for part in field_path.split("."):
+            if not isinstance(value, dict) or part not in value:
+                return None
+
+            value = value[part]
+
+        return value
+
+    def set_nested_value(data, field_path, value):
+        parts = field_path.split(".")
+        current = data
+
+        for part in parts[:-1]:
+            current = current.setdefault(part, {})
+
+        current[parts[-1]] = value
+
+    def select_record_fields(record):
+        if selected_fields is None:
+            return record
+
+        selected = {}
+
+        for field in selected_fields:
+            value = get_nested_value(record, field)
+
+            if value is not None:
+                set_nested_value(selected, field, value)
+
+        return selected
+
+    formatted_records = [
+        select_record_fields(record)
+        for record in formatted_records
+    ]
+
+    # -----------------------------------------
+    # CSV EXPORT
+    # -----------------------------------------
+    if export == "csv":
+
+        def flatten_record(data, prefix=""):
+            flattened = {}
+
+            for key, value in data.items():
+                field_name = (
+                    f"{prefix}.{key}" if prefix else key
+                )
+
+                if isinstance(value, dict):
+                    flattened.update(
+                        flatten_record(value, field_name)
+                    )
+                else:
+                    flattened[field_name] = value
+
+            return flattened
+
+        if selected_fields is None:
+            flattened_records = [
+                flatten_record(record)
+                for record in formatted_records
+            ]
+
+            csv_fields = ["record_id"]
+
+            for record in flattened_records:
+                for field in record:
+                    if field not in csv_fields:
+                        csv_fields.append(field)
+
+        else:
+            csv_fields = selected_fields
+
+            flattened_records = []
+
+            for record in formatted_records:
+                flattened = {}
+
+                for field in csv_fields:
+                    flattened[field] = get_nested_value(
+                        record, field
+                    )
+
+                flattened_records.append(flattened)
+
+        output = io.StringIO(newline="")
+
+        writer = csv.DictWriter(
+            output,
+            fieldnames=csv_fields,
+            extrasaction="ignore"
+        )
+
+        writer.writeheader()
+
+        for record in flattened_records:
+            safe_row = {}
+
+            for field in csv_fields:
+                value = record.get(field)
+
+                if isinstance(value, (dict, list)):
+                    value = json.dumps(
+                        value,
+                        ensure_ascii=False,
+                        default=str
+                    )
+
+                elif value is not None:
+                    value = str(value)
+
+                    # Protect against CSV formula injection.
+                    if value.startswith(
+                        ("=", "+", "-", "@", "\t", "\r")
+                    ):
+                        value = "'" + value
+
+                safe_row[field] = value
+
+            writer.writerow(safe_row)
+
+        csv_content = output.getvalue()
+        output.close()
+
+        return StreamingResponse(
+            iter([csv_content]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition":
+                    'attachment; filename="omg_validation_history.csv"'
+            }
+        )
+
+    # -----------------------------------------
+    # JSON RESPONSE
+    # -----------------------------------------
+    total_pages = (
+        (total_records + page_size - 1) // page_size
+        if total_records else 0
+    )
+
+    return {
+        "success": True,
+        "view": "records",
+        "total_records": total_records,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages,
+        "records": formatted_records
+    }

@@ -214,12 +214,7 @@ def _module_result_from_report(module, report):
     )
     risk = calculate_risk_points(findings)
 
-    # A validator-provided confidence/safety score is the module's final score.
-    # The compatibility interface in hybrid_scoring.py uses that score directly
-    # and derives module risk as (100 - score). Keep the same contract in the
-    # portal path instead of re-projecting an already-scored module from its
-    # findings a second time. Findings and inspection state still control the
-    # verdict, so a score can never override a hard block or incomplete scan.
+    
     if explicit_score is not None:
         if status == "RESTRICTED" or blocking or not inspection_complete or explicit_score < WARNING_THRESHOLD:
             band = "RESTRICTED"
@@ -265,6 +260,7 @@ def _module_result_from_report(module, report):
     # final safety score as risk = 100 - safety_score. Do not aggregate the
     # pre-projection finding risk here, otherwise the portal and compatibility
     # interface can report different overall scores for the same module scores.
+    
     projection_risk = max(0.0, 100.0 - score)
 
     if status == "RESTRICTED":

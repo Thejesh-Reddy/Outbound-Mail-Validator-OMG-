@@ -13,7 +13,7 @@ class EmailRequest(BaseModel):
     # existing Notify clients that submit HTML content. At least one is required.
     body: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
-    recipients: list[str] = Field(..., min_length=1, max_length=100)
+    recipients: list[str] = Field(default_factory=list)
     attachments: list[dict] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")

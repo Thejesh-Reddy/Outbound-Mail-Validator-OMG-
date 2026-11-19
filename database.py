@@ -1,83 +1,83 @@
 
-"""
-MongoDB connection manager for OMG.
-Uses MONGODB_URI from the .env file.
-"""
+# """
+# MongoDB connection manager for OMG.
+# Uses MONGODB_URI from the .env file.
+# """
 
 import os
-import logging
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
-
 MONGODB_URI = os.getenv("MONGODB_URI")
 MONGODB_DB = os.getenv("MONGODB_DB", "OMG_Database")
 
-_client = None
-_database = None
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI is missing from .env")
 
+client = MongoClient(
+    MONGODB_URI,
+    serverSelectionTimeoutMS=10000
+)
+
+client.admin.command("ping")
+
+db = client[MONGODB_DB]
+
+users_collection = db["users"]
+sessions_collection = db["auth_sessions"]
+analysis_collection = db["email_analysis"]
+
+# Replace the legacy index if it uses the same name for a different field.
+session_indexes = {
+    index["name"]: index
+    for index in sessions_collection.list_indexes()
+}
+existing_session_jti_index = session_indexes.get("unique_session_jti")
+if (
+    existing_session_jti_index
+    and (
+        existing_session_jti_index.get("key") != {"jwt_token": 1}
+        or existing_session_jti_index.get("unique") is not True
+        or existing_session_jti_index.get("partialFilterExpression")
+        != {"jwt_token": {"$exists": True}}
+    )
+):
+    sessions_collection.drop_index("unique_session_jti")
+
+# Create indexes safely using consistent names
+users_collection.create_index(
+    [("email", 1)],
+    unique=True,
+    name="unique_user_email"
+)
+
+sessions_collection.create_index(
+    [("jwt_token", 1)],
+    unique=True,
+    partialFilterExpression={"jwt_token": {"$exists": True}},
+    name="unique_session_jti"
+)
+
+sessions_collection.create_index(
+    [("expires_at", 1)],
+    expireAfterSeconds=0,
+    name="session_expiry_ttl"
+)
+
+analysis_collection.create_index(
+    [("account_id", 1), ("created_at", -1)],
+    name="account_history_index"
+)
 
 def connect_to_mongodb():
-    """Connect to MongoDB and return the database."""
-    global _client, _database
-
-    if not MONGODB_URI:
-        raise RuntimeError("MONGODB_URI is missing from the .env file")
-
-    if _database is not None:
-        return _database
-
-    try:
-        _client = MongoClient(
-            MONGODB_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=10000,
-        )
-
-        _client.admin.command("ping")
-        _database = _client[MONGODB_DB]
-
-        logger.info("MongoDB connection established")
-        return _database
-
-    except PyMongoError:
-        logger.exception("MongoDB connection failed")
-        _client = None
-        _database = None
-        raise
-
+    """Verify MongoDB connection."""
+    client.admin.command("ping")
+    print("MongoDB connected successfully")
+    return db
 
 def get_database():
-    """Return the active database."""
-    if _database is None:
-        return connect_to_mongodb()
+    return db
 
-    return _database
-
-
-def close_mongodb_connection():
-    """Close MongoDB connection during application shutdown."""
-    global _client, _database
-
-    if _client is not None:
-        _client.close()
-
-    _client = None
-    _database = None
-    logger.info("MongoDB connection closed")
-
-
-def check_mongodb_connection():
-    """Check MongoDB connectivity."""
-    try:
-        db = get_database()
-        db.command("ping")
-        return True
-    except Exception:
-        logger.exception("MongoDB health check failed")
-        return False
+print("MongoDB connected successfully")

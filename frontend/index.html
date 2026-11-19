@@ -1,593 +1,3072 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#11233f">
-  <title>OMG Mail — Secure Email Portal Demo</title>
-  <style>
-    :root { --navy:#11243e; --navy2:#1c365a; --ink:#172842; --muted:#68788d; --line:#e3e9f2; --wash:#f5f7fb; --paper:#fff; --accent:#395ee8; --accentlight:#ebefff; --success:#087758; --warning:#a46410; --danger:#bf3547; --shadow:0 14px 44px rgba(25,48,85,.07) }
-    * { box-sizing:border-box }
-    body { margin:0; font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; color:var(--ink); background:var(--wash) }
-    button,input,textarea,select { font:inherit }
-    button { cursor:pointer }
-    button:disabled { opacity:.5; cursor:not-allowed }
-    button:focus-visible,input:focus-visible,textarea:focus-visible { outline:3px solid #a6b9ff; outline-offset:2px }
-    input,textarea { min-width:0 }
-    .app { display:grid; grid-template-columns:222px minmax(0,1fr); min-height:100vh }
-    .sidebar { background:var(--navy); color:white; padding:24px 15px; display:flex; flex-direction:column; gap:24px }
-    .brand { display:flex; align-items:center; gap:10px; padding:0 7px }
-    .brand-icon { width:39px; height:39px; border-radius:12px; background:#416cf2; display:grid; place-items:center; font-weight:850; font-size:21px; color:#fff; box-shadow:0 8px 20px #091b385e }
-    .brand-name { font-weight:800; letter-spacing:-.55px; font-size:19px; line-height:1.15 }
-    .brand-name small { display:block; color:#a9bad7; font-size:10px; font-weight:500; letter-spacing:.4px; margin-top:4px }
-    .compose-new { width:100%; background:#fff; color:#1e3e74; border:0; border-radius:12px; padding:12px 13px; font-weight:760; text-align:left; box-shadow:0 6px 20px #0002 }
-    .compose-new span { font-size:20px; vertical-align:-2px; margin-right:9px }
-    .nav-label { text-transform:uppercase; color:#7895b8; font-size:10px; font-weight:740; letter-spacing:1.6px; padding:0 12px 9px }
-    .navitem { width:100%; border:0; color:#c0cde1; background:transparent; border-radius:10px; text-align:left; padding:11px 12px; display:flex; align-items:center; gap:12px; font-weight:580 }
-    .navitem:hover { background:#ffffff12 }
-    .navitem.active { background:#31507e; color:#fff }
-    .navitem svg { width:17px; height:17px; flex-shrink:0 }
-    .navitem .count { margin-left:auto; font-size:10px; background:#ffffff1c; padding:2px 6px; border-radius:7px }
-    .sidebarfoot { margin-top:auto; border-top:1px solid #ffffff1f; padding:17px 10px 0; color:#96aeca; font-size:11px }
-    .sidebarfoot strong { color:#dfe9fb; font-weight:700 }
-    .main { min-width:0; display:flex; flex-direction:column }
-    .topbar { background:#fff; height:78px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:18px; justify-content:space-between; padding:0 30px }
-    .top-title { font-size:22px; font-weight:780; letter-spacing:-.7px }
-    .top-subtitle { font-size:11px; color:var(--muted); margin-top:3px }
-    .topright { display:flex; align-items:center; gap:11px; flex-wrap:wrap }
-    .connection { background:#f1f4f9; padding:7px 11px; border-radius:20px; color:#50647b; font-size:11px; white-space:nowrap }
-    .connection:before { content:""; display:inline-block; width:7px; height:7px; background:#93a2b5; border-radius:50%; margin-right:8px }
-    .connection.online:before { background:#12a875 }
-    .connection.offline:before { background:#f16f71 }
-    .topbtn { border:1px solid var(--line); background:#fff; border-radius:9px; color:#3e526c; padding:9px 12px; font-size:12px; font-weight:700 }
-    .workspace { padding:25px 28px 40px; display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; max-width:1550px; width:100%; margin:0 auto }
-    #composePanel, #mailboxPanel { grid-column:1/-1 }
-    #mailboxPanel .messages { min-height:160px; max-height:340px }
-    .banner { grid-column:1/-1; background:#edf2ff; border:1px solid #dce5fc; border-radius:12px; padding:12px 16px; color:#405d8c; display:flex; justify-content:space-between; align-items:center; gap:12px; font-size:12px }
-    .banner strong { color:#2c4e8c }
-    .panel { min-width:0; border:1px solid var(--line); border-radius:15px; background:var(--paper); box-shadow:var(--shadow); overflow:hidden }
-    .panelhead { padding:17px 19px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:64px }
-    .panelhead h2 { margin:0; font-size:16px; letter-spacing:-.3px }
-    .panelhead small { color:var(--muted); font-size:11px }
-    .sectionpill { display:inline-flex; font-size:10px; letter-spacing:.4px; color:#5a71ad; background:#eef2ff; border-radius:50px; padding:5px 9px; font-weight:700 }
-    .searchwrap { padding:13px 16px; border-bottom:1px solid var(--line) }
-    .searchwrap input { width:100%; border:1px solid var(--line); border-radius:9px; background:#f9fbfe; padding:10px 12px; outline:none; color:var(--ink) }
-    .messages { min-height:275px; max-height:590px; overflow:auto }
-    .mailitem { border:0; border-bottom:1px solid #eef1f6; padding:15px 17px; width:100%; text-align:left; display:grid; grid-template-columns:35px minmax(0,1fr); gap:11px; background:#fff; color:inherit }
-    .mailitem:hover,.mailitem.selected { background:#f5f8ff }
-    .avatar { display:grid; place-items:center; border-radius:11px; width:35px; height:35px; background:#e9eefb; color:#526fa9; font-size:12px; font-weight:800 }
-    .mailhead { display:flex; justify-content:space-between; gap:8px; font-size:12px }
-    .mailhead strong { white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
-    .mailhead time { color:#98a5b5; white-space:nowrap; font-size:10px }
-    .mailsub { font-size:12px; font-weight:650; margin:3px 0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-    .mailpreview { font-size:11px; color:#7c899c; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-    .emptybox { color:#8090a5; padding:54px 25px; text-align:center; line-height:1.8 }
-    .emptybox strong { display:block; color:#566b86; font-size:14px }
-    .reader { border-top:1px solid var(--line); padding:18px; display:none; background:#fbfcff }
-    .reader.show { display:block }
-    .reader h3 { margin:0 0 9px; font-size:14px }
-    .reader .meta { font-size:11px; color:var(--muted); margin-bottom:12px }
-    .reader pre { background:transparent; color:#536780; white-space:pre-wrap; overflow-wrap:anywhere; margin:0; font:12px/1.65 inherit; max-height:175px; overflow:auto }
-    .compose-head { background:linear-gradient(115deg,#fff,#f8faff); }
-    .composeheadtitle { display:flex; align-items:center; gap:9px }
-    .composebody { padding:0 }
-    .compose-layout { display:grid; grid-template-columns:minmax(0,1.08fr) minmax(340px,.92fr); align-items:stretch }
-    .compose-fields { min-width:0; padding:23px 25px 26px }
-    .compose-inspector { min-width:0; padding:23px 23px 26px; border-left:1px solid var(--line); background:linear-gradient(160deg,#f7f9ff 0%,#ffffff 70%); display:flex; flex-direction:column; gap:14px }
-    .compose-inspector .delivery-status, .compose-inspector .notice, .compose-inspector .result { margin-top:0 }
-    .compose-inspector .result { width:100%; background:#fff }
-    .inspector-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:1px }
-    .inspector-head h3 { margin:0; font-size:15px; color:var(--ink); letter-spacing:-.25px }
-    .inspector-head p { margin:4px 0 0; font-size:11px; color:var(--muted) }
-    .compose-fields textarea#body { min-height:230px }
-    .compose-inspector .modulegrid { grid-template-columns:repeat(3,minmax(0,1fr)) }
-    .rowlabel { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:7px }
-    label { color:#4b5b70; font-size:11px; font-weight:740 }
-    .hint { color:#8a98a9; font-size:11px; margin-top:7px }
-    .field { margin-bottom:15px }
-    .textbox { width:100%; padding:11px 12px; border:1px solid #dce4ef; border-radius:9px; color:var(--ink); background:white; outline:none }
-    textarea.textbox { min-height:160px; resize:vertical; line-height:1.7 }
-    .urlbox { background:#f6f8fc; border:1px solid #e4eaf5; border-radius:11px; padding:11px 12px; margin-top:10px }
-    .urlbox .rowlabel { margin:0 0 6px }
-    .urls { display:flex; flex-wrap:wrap; gap:6px }
-    .urlchip { display:inline-block; border:1px solid #dce7fa; color:#315a9d; background:#fff; padding:5px 8px; border-radius:7px; max-width:100%; overflow-wrap:anywhere; font-size:11px }
-    .filesbox { border:1.5px dashed #b9c9e4; border-radius:11px; padding:13px; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fafcff }
-    .filebrowse { display:inline-block; background:#ebf0ff; color:#395bc4; border-radius:9px; padding:8px 12px; font-size:11px; font-weight:750; cursor:pointer }
-    #files { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none }
-    .filelist { display:flex; flex-wrap:wrap; gap:8px; margin-top:9px }
-    .filetag { font-size:11px; padding:6px 8px; background:#edf2fb; border-radius:8px; display:flex; align-items:center; gap:8px; max-width:100%; overflow-wrap:anywhere }
-    .filetag button { border:0; background:none; color:#a94a55; font-weight:850; padding:0 2px }
-    .compose-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; border-top:1px solid var(--line); padding-top:15px; margin-top:17px }
-    .leftbuttons { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
-    .btn { border:1px solid #d8e1ed; background:white; color:#516783; border-radius:9px; padding:10px 12px; font-size:12px; font-weight:730 }
-    .btn.primary { background:var(--accent); color:#fff; border-color:var(--accent); padding:11px 20px; box-shadow:0 7px 16px #395ee82e }
-    .btn.danger { background:var(--danger); border-color:var(--danger); color:#fff }
-    .btn:hover:not(:disabled) { filter:brightness(.97) }
-    .result { margin-top:17px; border:1px solid var(--line); border-radius:12px; overflow:hidden }
-    .resultheader { padding:12px 15px; background:#f9fbff; display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px solid var(--line) }
-    .resultheader h3 { font-size:13px; margin:0 }
-    .verdict { font-size:10px; font-weight:850; padding:5px 10px; border-radius:50px; background:#e9eef5; color:#607189; display:inline-block; letter-spacing:.2px }
-    .verdict.SAFE { background:#dff7ed; color:#067754 }
-    .verdict.WARNING { background:#fff0d4; color:#a46a0c }
-    .verdict.RESTRICTED,.verdict.ERROR { background:#ffe6e8; color:#ae2b42 }
-    .resultbody { padding:14px 15px }
-    .resultmsg { font-size:12px; color:#65778f; margin-bottom:10px }
-    .modulegrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px }
-    .module { min-width:0; border:1px solid var(--line); padding:10px; border-radius:9px }
-    .module small { display:block; color:#8a99ab; font-size:10px; margin-bottom:4px }
-    .module b { display:block; font-size:12px; overflow-wrap:anywhere }
-    .module .score { font-size:10px; color:#899ab0 }
-    .overallscore { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:9px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; background:#f9fbff }
-    .overallscore small { display:block; color:#8a99ab; font-size:10px; letter-spacing:.3px; margin-bottom:3px }
-    .overallscore strong { display:block; font-size:16px; color:var(--ink) }
-    .overallscore .score { font-size:10px; color:#899ab0 }
-    .findinglist { margin:10px 0 0; padding:0; list-style:none; display:grid; gap:7px }
-    .findinglist li { padding:9px 10px; background:#fff9ef; border:1px solid #f3e5c8; color:#795a2e; border-radius:8px; font-size:11px; overflow-wrap:anywhere }
-    .note { background:#fffaf1; color:#946924; padding:10px 12px; border:1px solid #f1e4c9; border-radius:9px; font-size:11px; line-height:1.5 }
-    .notice { margin-top:12px; padding:10px 12px; border-radius:9px; border:1px solid #cddaf6; color:#355e9a; background:#f0f5ff; font-size:11px; display:none; overflow-wrap:anywhere }
-    .notice.show { display:block }
-    .notice.fail { border-color:#efbec5; background:#fff1f3; color:#a32d42 }
-    .notice.good { border-color:#bde8d4; background:#eafaf1; color:#0c7a58 }
-    .delivery-status { margin-top:12px; display:flex; align-items:flex-start; gap:12px; padding:13px 14px; border-radius:10px; border:1px solid #d9e1ee; background:#f8fafd; color:#4e6179 }
-    .delivery-status .delivery-icon { height:29px; width:29px; flex-shrink:0; border-radius:50%; display:grid; place-items:center; font-size:15px; font-weight:800; background:#e8edf5 }
-    .delivery-status strong { display:block; font-size:12px; letter-spacing:.15px; margin-bottom:3px }
-    .delivery-status .delivery-detail { display:block; font-size:11px; line-height:1.55 }
-    .delivery-status.sent,.delivery-status.simulated { border-color:#bde8d4; background:#eafaf1; color:#086b4c }
-    .delivery-status.sent .delivery-icon,.delivery-status.simulated .delivery-icon { background:#c6efd9 }
-    .delivery-status.queued,.delivery-status.review,.delivery-status.unknown { border-color:#f2dda6; background:#fff9eb; color:#805511 }
-    .delivery-status.queued .delivery-icon,.delivery-status.review .delivery-icon,.delivery-status.unknown .delivery-icon { background:#ffe7a5 }
-    .delivery-status.blocked,.delivery-status.failed,.delivery-status.preview { border-color:#efc7cb; background:#fff3f4; color:#a12c40 }
-    .delivery-status.blocked .delivery-icon,.delivery-status.failed .delivery-icon,.delivery-status.preview .delivery-icon { background:#fbdfe4 }
-    .delivery-status.validating { border-color:#cddcfb; background:#f2f6ff; color:#375eaa }
-    .raw { margin:12px 0 0; padding:12px; border-radius:9px; max-height:270px; overflow:auto; color:#d7e9ff; background:#142641; font:11px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere }
-    .busy { display:none; gap:7px; color:#526de3; font-size:11px; margin-top:10px; align-items:center }
-    .busy.show { display:flex }
-    .spinner { width:12px; height:12px; border-radius:50%; border:2px solid #cad7ff; border-top-color:#405de8; animation:spin .8s linear infinite }
-    @keyframes spin {to { transform:rotate(360deg) }}
-    .overlay { display:none; position:fixed; inset:0; background:rgba(12,30,56,.57); z-index:10; align-items:center; justify-content:center; padding:17px }
-    .overlay.show { display:flex }
-    .modal { background:white; border-radius:17px; box-shadow:0 30px 90px #071b3c66; width:min(100%,525px); max-height:90vh; overflow:auto }
-    .modalhead { padding:21px 23px 13px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px }
-    .modalhead h3 { margin:0; font-size:18px }
-    .modalbody { padding:18px 23px 22px }
-    .modalbody p { margin:0 0 13px; color:#5d7089; font-size:12px }
-    .modalfoot { display:flex; justify-content:flex-end; gap:9px; margin-top:19px; flex-wrap:wrap }
-    .checkrow { display:flex; gap:10px; align-items:flex-start; padding:10px 0; font-size:12px; color:#556c87 }
-    .checkrow input { margin-top:3px }
-    .settingsbody { padding:18px 23px 21px }
-    .settingsbody .field { margin-bottom:13px }
-    .settingsbody .field p { margin:4px 0 0; color:var(--muted); font-size:11px }
-    .settingsbottom { background:#f8fbff; padding:12px 23px; color:#788ba5; font-size:11px; border-top:1px solid var(--line) }
-    .hidden { display:none!important }
-    @media(max-width:1050px) { .compose-layout { grid-template-columns:minmax(0,1fr) } .compose-inspector { border-left:0; border-top:1px solid var(--line) } .messages{max-height:330px} }
-    @media(max-width:730px) { .app { grid-template-columns:1fr }.sidebar { flex-direction:row; flex-wrap:wrap; padding:14px; gap:11px }.brand{ flex:1 1 auto }.compose-new{ width:auto }.nav-label,.sidebarfoot{display:none} .sidebar nav { display:flex; gap:3px; overflow:auto; width:100% }.navitem{width:auto; padding:8px 10px; white-space:nowrap} .navitem .count {display:none}.topbar{height:auto; padding:15px; flex-wrap:wrap}.workspace{padding:14px;gap:12px}.banner{align-items:start;flex-direction:column}.compose-fields,.compose-inspector{padding:16px}.modulegrid{grid-template-columns:1fr 1fr 1fr} }
-    @media(max-width:730px) {
-      .app { grid-template-columns:minmax(0,1fr) }
-      .sidebar,.main,.topbar,.topright,.workspace,.compose-layout { min-width:0 }
-      .sidebar nav { min-width:0 }
-      .brand { min-width:0; flex:1 1 180px }
-      .compose-new { flex:0 0 auto }
-      .topright { max-width:100% }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OMG | Outbound Mail Gatekeeper</title>
+
+<style>
+:root {
+    --black: #111111;
+    --dark: #202020;
+    --gray: #666666;
+    --muted: #999999;
+    --border: #e5e5e5;
+    --light: #f6f6f6;
+    --white: #ffffff;
+    --safe: #16794b;
+    --safe-bg: #eaf7ef;
+    --warning: #a66a00;
+    --warning-bg: #fff5df;
+    --danger: #c33333;
+    --danger-bg: #fff0f0;
+    --radius: 12px;
+    --shadow: 0 4px 20px rgba(0,0,0,.045);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Arial, sans-serif;
+    background: #f5f5f5;
+    color: var(--black);
+    min-height: 100vh;
+}
+
+button, input, textarea, select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* AUTHENTICATION */
+
+.auth-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: #f4f4f4;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 36px;
+    box-shadow: var(--shadow);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    font-size: 20px;
+}
+
+.brand-mark {
+    width: 38px;
+    height: 38px;
+    background: var(--black);
+    color: white;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    font-size: 17px;
+    font-weight: 800;
+}
+
+.auth-heading {
+    margin-top: 32px;
+    margin-bottom: 8px;
+    font-size: 25px;
+    font-weight: 750;
+}
+
+.auth-subtitle {
+    color: var(--gray);
+    font-size: 13px;
+    margin-bottom: 26px;
+    line-height: 1.6;
+}
+
+.field {
+    margin-bottom: 17px;
+}
+
+.field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.field input,
+.field textarea,
+.field select {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid #dedede;
+    border-radius: 8px;
+    outline: none;
+    background: white;
+    color: var(--black);
+    font-size: 13px;
+    transition: border .2s;
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+    border-color: #333;
+}
+
+.field textarea {
+    resize: vertical;
+    min-height: 150px;
+    line-height: 1.6;
+}
+
+.primary-btn {
+    background: var(--black);
+    color: white;
+    border: 1px solid var(--black);
+    border-radius: 8px;
+    padding: 12px 17px;
+    font-size: 13px;
+    font-weight: 700;
+    transition: .2s;
+}
+
+.primary-btn:hover {
+    background: #333;
+}
+
+.primary-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background: white;
+    color: var(--black);
+    border: 1px solid #dcdcdc;
+    border-radius: 8px;
+    padding: 11px 15px;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.secondary-btn:hover {
+    background: #f5f5f5;
+}
+
+.danger-btn {
+    background: white;
+    color: #b52e2e;
+    border: 1px solid #e8caca;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.auth-switch {
+    text-align: center;
+    font-size: 12px;
+    color: var(--gray);
+    margin-top: 20px;
+}
+
+.text-button {
+    border: 0;
+    background: none;
+    color: var(--black);
+    font-weight: 750;
+    text-decoration: underline;
+    margin-left: 4px;
+}
+
+.auth-message {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 12px;
+    line-height: 1.5;
+}
+
+/* MAIN LAYOUT */
+
+.app {
+    min-height: 100vh;
+    display: flex;
+}
+
+.sidebar {
+    width: 245px;
+    background: #111;
+    color: white;
+    min-height: 100vh;
+    padding: 25px 17px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.sidebar .brand {
+    padding: 0 9px 30px;
+}
+
+.sidebar .brand-mark {
+    background: white;
+    color: black;
+}
+
+.sidebar-label {
+    color: #858585;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    padding: 10px 10px;
+}
+
+.nav-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 0;
+    color: #bdbdbd;
+    background: transparent;
+    border-radius: 8px;
+    padding: 12px 11px;
+    margin: 3px 0;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nav-button:hover,
+.nav-button.active {
+    color: white;
+    background: #303030;
+}
+
+.nav-icon {
+    width: 19px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    border-top: 1px solid #333;
+    padding-top: 18px;
+}
+
+.sidebar-account {
+    padding: 10px;
+    color: #bdbdbd;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+}
+
+.main {
+    min-width: 0;
+    flex: 1;
+}
+
+.topbar {
+    height: 72px;
+    padding: 0 32px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.topbar-title {
+    font-size: 16px;
+    font-weight: 750;
+}
+
+.topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-chip {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 12px;
+    color: #555;
+}
+
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #111;
+    color: white;
+    display: grid;
+    place-items: center;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.content {
+    max-width: 1250px;
+    padding: 30px 32px;
+    margin: auto;
+}
+
+.page-heading {
+    margin-bottom: 23px;
+}
+
+.page-heading h1 {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -.5px;
+}
+
+.page-heading p {
+    color: var(--gray);
+    font-size: 13px;
+    margin-top: 7px;
+    line-height: 1.5;
+}
+
+/* SUMMARY CARDS */
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 19px;
+    box-shadow: var(--shadow);
+}
+
+.summary-label {
+    font-size: 11px;
+    color: var(--gray);
+    font-weight: 650;
+}
+
+.summary-value {
+    font-size: 25px;
+    font-weight: 800;
+    margin-top: 9px;
+}
+
+.summary-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+}
+
+/* PANELS */
+
+.panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 23px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.panel-title {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+.panel-description {
+    color: var(--gray);
+    font-size: 12px;
+    margin-top: 5px;
+    line-height: 1.5;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+}
+
+.span-two {
+    grid-column: span 2;
+}
+
+.form-help {
+    color: var(--muted);
+    font-size: 10px;
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.file-area {
+    border: 1px dashed #c9c9c9;
+    border-radius: 9px;
+    padding: 18px;
+    text-align: center;
+    background: #fafafa;
+}
+
+.file-area label {
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.file-area input {
+    display: none;
+}
+
+.file-list {
+    margin-top: 10px;
+    text-align: left;
+    font-size: 11px;
+    color: #555;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #eee;
+    overflow-wrap: anywhere;
+}
+
+.remove-file {
+    border: 0;
+    background: none;
+    color: #b22;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.loading-text {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+/* RESULTS */
+
+.result-section {
+    margin-top: 25px;
+}
+
+.result-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .5px;
+}
+
+.status-safe {
+    color: var(--safe);
+    background: var(--safe-bg);
+}
+
+.status-warning {
+    color: var(--warning);
+    background: var(--warning-bg);
+}
+
+.status-restricted {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+.result-score {
+    font-size: 27px;
+    font-weight: 850;
+}
+
+.result-score small {
+    font-size: 12px;
+    color: var(--gray);
+    font-weight: 600;
+}
+
+.result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.result-module {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 15px;
+    min-width: 0;
+}
+
+.module-name {
+    font-size: 12px;
+    color: var(--gray);
+    font-weight: 700;
+}
+
+.module-status {
+    font-size: 15px;
+    font-weight: 850;
+    margin-top: 8px;
+}
+
+.module-score {
+    font-size: 11px;
+    color: var(--gray);
+    margin-top: 5px;
+}
+
+.result-detail {
+    margin-top: 14px;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+}
+
+.result-detail h4 {
+    font-size: 12px;
+    margin-bottom: 9px;
+}
+
+.result-detail pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #444;
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 13px;
+    max-height: 350px;
+    overflow: auto;
+}
+
+.error-message {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 12px;
+}
+
+.acknowledgement {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    background: var(--warning-bg);
+    border: 1px solid #f1dfb7;
+    padding: 13px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-top: 14px;
+}
+
+.acknowledgement input {
+    margin-top: 3px;
+}
+
+/* HISTORY */
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 570px;
+}
+
+th {
+    text-align: left;
+    font-size: 10px;
+    color: #777;
+    font-weight: 800;
+    letter-spacing: .6px;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+}
+
+td {
+    padding: 14px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 45px 15px;
+    color: var(--gray);
+    font-size: 12px;
+}
+
+.empty-state strong {
+    display: block;
+    font-size: 14px;
+    color: var(--black);
+    margin-bottom: 7px;
+}
+
+/* PROFILE */
+
+.profile-details {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    gap: 17px;
+    font-size: 13px;
+}
+
+.profile-details .key {
+    color: var(--gray);
+}
+
+/* NOTIFICATIONS */
+
+.toast {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    z-index: 1000;
+    max-width: 360px;
+    background: #111;
+    color: white;
+    border-radius: 9px;
+    padding: 13px 17px;
+    font-size: 12px;
+    box-shadow: 0 8px 30px #0002;
+}
+
+.toast.error {
+    background: #9e2525;
+}
+
+.toast.success {
+    background: #176b43;
+}
+
+/* MOBILE */
+
+.mobile-menu {
+    display: none;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 7px;
+    padding: 7px 10px;
+}
+
+@media(max-width: 850px) {
+    .sidebar {
+        width: 210px;
     }
-    @media(max-width:410px) { .modulegrid{grid-template-columns:1fr} .topbar .topright{width:100%} .compose-actions{flex-direction:column;align-items:stretch}.compose-actions .btn.primary{width:100%} }
-  </style>
+
+    .content {
+        padding: 23px 19px;
+    }
+
+    .topbar {
+        padding: 0 20px;
+    }
+}
+
+/* VALIDATION POPUP */
+
+.popup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, .55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.popup-card {
+    width: 100%;
+    max-width: 480px;
+    background: white;
+    border-radius: 14px;
+    padding: 25px;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, .2);
+}
+
+.popup-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.popup-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 21px;
+    font-weight: 800;
+}
+
+.popup-warning .popup-icon {
+    color: var(--warning);
+    background: var(--warning-bg);
+}
+
+.popup-restricted .popup-icon {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+.popup-title {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.popup-subtitle {
+    color: var(--gray);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-bottom: 18px;
+}
+
+.popup-reasons {
+    background: #f8f8f8;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 15px;
+    margin-bottom: 17px;
+}
+
+.popup-reasons h4 {
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.popup-reasons ul {
+    padding-left: 19px;
+    color: #444;
+    font-size: 12px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.popup-no-reasons {
+    font-size: 12px;
+    color: var(--gray);
+}
+
+.popup-acknowledgement {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 18px;
+}
+
+.popup-acknowledgement input {
+    margin-top: 3px;
+}
+
+.popup-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.popup-restricted-note {
+    color: var(--danger);
+    font-size: 11px;
+    margin-bottom: 16px;
+    font-weight: 700;
+}
+
+@media(max-width: 500px) {
+    .popup-card {
+        padding: 19px;
+    }
+
+    .popup-actions button {
+        width: 100%;
+    }
+}
+
+@media(max-width: 650px) {
+    .app {
+        display: block;
+    }
+
+    .sidebar {
+        display: none;
+        width: 100%;
+        min-height: auto;
+        padding: 15px;
+    }
+
+    .sidebar.open {
+        display: flex;
+    }
+
+    .sidebar .brand {
+        padding-bottom: 15px;
+    }
+
+    .sidebar-bottom {
+        margin-top: 15px;
+    }
+
+    .topbar {
+        height: 62px;
+        padding: 0 14px;
+    }
+
+    .mobile-menu {
+        display: inline-block;
+    }
+
+    .content {
+        padding: 20px 13px;
+    }
+
+    .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .summary-card {
+        padding: 15px;
+    }
+
+    .summary-value {
+        font-size: 21px;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .span-two {
+        grid-column: auto;
+    }
+
+    .result-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .panel {
+        padding: 17px;
+    }
+
+    .profile-chip .profile-email {
+        display: none;
+    }
+
+    .profile-details {
+        grid-template-columns: 1fr;
+        gap: 7px;
+    }
+}
+</style>
 </head>
+
 <body>
-<div class="app">
-  <aside class="sidebar">
-    <div class="brand"><div class="brand-icon">✉</div><div class="brand-name">OMG Mail<small>SECURE OUTBOUND DEMO</small></div></div>
-    <button class="compose-new" id="newMail" type="button"><span>＋</span> Compose mail</button>
-    <nav aria-label="Mailbox folders">
-      <div class="nav-label">Mailbox</div>
-      <button type="button" class="navitem active" data-folder="inbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4h18v15H3zM3 12h5l2 3h4l2-3h5"/></svg> Inbox <span class="count" id="inboxCount">3</span></button>
-      <button type="button" class="navitem" data-folder="sent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-7 20-4-9-9-4zM22 2 11 13"/></svg> Sent <span class="count" id="sentCount">0</span></button>
-      <button type="button" class="navitem" data-folder="drafts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h12a3 3 0 0 1 3 3v15H3V6a3 3 0 0 1 3-3zm2 6h8M8 13h8"/></svg> Drafts <span class="count" id="draftCount">0</span></button>
-      <button type="button" class="navitem" data-folder="activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 1 0 9 9m-9-5v5l4 3"/></svg> Validation log</button>
-    </nav>
-    <div class="sidebarfoot"><strong>OMG pre-send protection</strong><div>Content · URL · Attachment</div><div style="margin-top:11px">Demo sends are simulated and appear under Sent. Real delivery requires a configured backend.</div></div>
-  </aside>
-  <main class="main">
-    <header class="topbar">
-      <div><div class="top-title" id="folderTitle">Inbox</div><div class="top-subtitle" id="folderSub">Example mailbox · not synchronized with an email provider</div></div>
-      <div class="topright"><span class="connection" id="connection">API not checked</span><button type="button" class="topbtn" id="checkApi">Check API</button><button type="button" class="topbtn" id="settingsBtn">⚙ Settings</button></div>
-    </header>
-    <div class="workspace">
-      <div class="banner"><span><strong>One OMG validation endpoint.</strong> URLs are automatically extracted from your subject and body; attachments are uploaded as binary files. Click <strong>Send email</strong> to validate, then simulate a send (or use your configured real mail gateway).</span><span id="modeTag" class="sectionpill">DEMO SEND MODE</span></div>
-      <section class="panel" id="composePanel" aria-label="Compose email">
-        <div class="panelhead compose-head"><div class="composeheadtitle"><h2>New message</h2></div><span class="sectionpill">AUTO-VALIDATION ON SEND</span></div>
-        <div class="composebody">
-          <div class="compose-layout">
-            <div class="compose-fields">
-          <div class="field"><div class="rowlabel"><label for="to">To (recipients)</label><span class="hint" style="margin:0">Separate with commas</span></div><input id="to" class="textbox" type="text" autocomplete="off" placeholder="recipient@example.com" value="qa@example.com"></div>
-          <div class="field"><label for="subject">Subject</label><input id="subject" class="textbox" type="text" autocomplete="off" placeholder="Enter subject" value="Weekly project update"></div>
-          <div class="field"><div class="rowlabel"><label for="body">Message</label><span class="hint" style="margin:0">Plain text · links allowed</span></div><textarea id="body" class="textbox" placeholder="Write your email here...">Hello team,
 
-Please review the weekly project status.
+<!-- LOGIN / REGISTER -->
 
-Thanks,
-QA Team</textarea></div>
-          <details class="field"><summary style="font-size:11px;color:#526b91;cursor:pointer;font-weight:720">Optional HTML source</summary><textarea id="html" class="textbox" style="min-height:90px;margin-top:9px" placeholder="<p>Optional HTML content; leave empty for plain text</p>"></textarea><p class="hint">If filled, the backend also inspects HTML links and markup. This demo does not execute HTML.</p></details>
-          <div class="urlbox"><div class="rowlabel"><label>Links detected in message</label><span id="urlCount" class="hint" style="margin:0">0 detected</span></div><div id="urlList" class="urls"><span class="hint">No URLs present</span></div><div class="hint">Automatically detected from subject, body, and optional HTML. No separate URL input.</div></div>
-          <div class="field" style="margin-top:17px"><div class="rowlabel"><label for="files">Attachments</label><span class="hint" style="margin:0">Max 5 files</span></div><div class="filesbox"><div><strong style="font-size:12px">Attach documents or images</strong><div class="hint" style="margin-top:2px">3 MiB each, 10 MiB total (backend defaults)</div></div><label class="filebrowse" for="files">＋ Add files</label></div><input id="files" type="file" multiple aria-label="Choose file attachments"><div class="filelist" id="fileList"></div></div>
-          <div class="compose-actions"><div class="leftbuttons"><button class="btn" type="button" id="saveDraft">Save draft</button><button class="btn" type="button" id="clearCompose">Clear</button></div><button class="btn primary" type="button" id="sendBtn">➤ Send email</button></div>
-          <div id="busy" class="busy" role="status"><span class="spinner"></span><span id="busyText">Validating message...</span></div>
-            </div>
-            <aside class="compose-inspector" aria-label="Delivery status and OMG security results">
-              <div class="inspector-head">
-                <div><h3>Delivery &amp; security status</h3><p>Live results from the OMG validation API</p></div>
-                <span class="sectionpill">POLICY CHECK</span>
-              </div>
-          <div id="deliveryStatus" class="delivery-status idle" role="status" aria-live="polite">
-            <span id="deliveryIcon" class="delivery-icon" aria-hidden="true">—</span>
-            <div><strong id="deliveryTitle">EMAIL NOT SENT</strong><span class="delivery-detail" id="deliveryDetail">No send request has been made.</span></div>
-          </div>
-          <div id="notice" class="notice" role="status"></div>
-          <section class="result" aria-label="Validation results">
-            <div class="resultheader"><h3>OMG security check</h3><span id="verdict" class="verdict">NOT CHECKED</span></div>
-            <div class="resultbody"><div class="resultmsg" id="resultMessage">Your email will be checked automatically when you click Send.</div>
-              <div class="overallscore">
-                <div><small>OVERALL CONFIDENCE</small><strong id="overallScoreValue">—</strong><div id="overallScoreDetail" class="score">Not checked</div></div>
-                <span id="overallBand" class="verdict">NOT CHECKED</span>
-              </div>
-              <div class="modulegrid">
-                <div class="module"><small>SUBJECT + BODY</small><b id="textStatus">Not checked</b><div id="textScore" class="score">—</div></div>
-                <div class="module"><small>URLS</small><b id="urlStatus">Not checked</b><div id="urlScore" class="score">—</div></div>
-                <div class="module"><small>ATTACHMENTS</small><b id="attachmentStatus">Not checked</b><div id="attachmentScore" class="score">—</div></div>
-              </div>
-              <ul id="findingList" class="findinglist"></ul>
-              <div id="scannerWarning" class="note hidden" style="margin-top:11px"></div>
-              <details style="margin-top:12px"><summary style="cursor:pointer;color:#4468b6;font-size:11px;font-weight:730">Show full API response</summary><pre class="raw" id="rawJson">Not checked</pre></details>
-            </div>
-          </section>
-          <p class="hint" style="margin-bottom:0;margin-top:11px">Policy scores are not calibrated probabilities. A SAFE verdict is not a malware-free guarantee. Server-side validation must run again during actual sending.</p>
-            </aside>
-          </div>
+<section id="authScreen" class="auth-screen">
+    <div class="auth-card">
+
+        <div class="brand">
+            <div class="brand-mark">O</div>
+            <span>OMG</span>
         </div>
-      </section>
-      <section class="panel" id="mailboxPanel" aria-label="Mail list">
-        <div class="panelhead"><h2 id="listTitle">Inbox</h2><span class="sectionpill" id="listKind">SAMPLE MAIL</span></div>
-        <div class="searchwrap"><input id="mailSearch" aria-label="Search messages" placeholder="Search messages..."></div>
-        <div id="messages" class="messages"></div>
-        <div id="reader" class="reader"><h3 id="readerSubject"></h3><div id="readerMeta" class="meta"></div><pre id="readerBody"></pre></div>
-      </section>
+
+        <div id="loginPanel">
+            <h1 class="auth-heading">Welcome back</h1>
+            <p class="auth-subtitle">
+                Sign in to validate and manage your outbound emails.
+            </p>
+
+            <form id="loginForm">
+                <div class="field">
+                    <label for="loginEmail">Email address</label>
+                    <input id="loginEmail" type="email"
+                           placeholder="you@example.com" required>
+                </div>
+
+                <div class="field">
+                    <label for="loginPassword">Password</label>
+                    <input id="loginPassword" type="password"
+                           placeholder="Enter your password" required>
+                </div>
+
+                <button class="primary-btn full-width" type="submit"
+                        id="loginSubmit">
+                    Sign in
+                </button>
+                <div id="loginMessage" class="auth-message"></div>
+            </form>
+
+            <div class="auth-switch">
+                Don't have an account?
+                <button class="text-button" id="showRegister"
+                        type="button">Create account</button>
+            </div>
+        </div>
+
+        <div id="registerPanel" class="hidden">
+            <h1 class="auth-heading">Create account</h1>
+            <p class="auth-subtitle">
+                Register to start validating outbound emails.
+            </p>
+
+            <form id="registerForm">
+                <div class="field">
+                    <label for="registerName">Full name</label>
+                    <input id="registerName" type="text"
+                           placeholder="Your name" required minlength="2">
+                </div>
+
+                <div class="field">
+                    <label for="registerEmail">Email address</label>
+                    <input id="registerEmail" type="email"
+                           placeholder="you@example.com" required>
+                </div>
+
+                <div class="field">
+                    <label for="registerPassword">Password</label>
+                    <input id="registerPassword" type="password"
+                           placeholder="Minimum 8 characters"
+                           minlength="8" required>
+                </div>
+
+                <button class="primary-btn full-width" type="submit"
+                        id="registerSubmit">
+                    Create account
+                </button>
+                <div id="registerMessage" class="auth-message"></div>
+            </form>
+
+            <div class="auth-switch">
+                Already registered?
+                <button class="text-button" id="showLogin"
+                        type="button">Sign in</button>
+            </div>
+        </div>
     </div>
-  </main>
+</section>
+
+<!-- MAIN APPLICATION -->
+
+<div id="appScreen" class="app hidden">
+
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div class="brand-mark">O</div>
+            <span>OMG</span>
+        </div>
+
+        <div class="sidebar-label">WORKSPACE</div>
+
+        <button class="nav-button active" data-page="composePage">
+            <span class="nav-icon">✉</span>
+            Compose & Validate
+        </button>
+
+        <button class="nav-button" data-page="historyPage">
+            <span class="nav-icon">▤</span>
+            Validation History
+        </button>
+        <button class="nav-button" data-page="dataExplorerPage">
+    <span class="nav-icon">▥</span>
+    Data Explorer
+</button>
+
+        <div class="sidebar-label" style="margin-top:22px">
+            ACCOUNT
+        </div>
+
+        <button class="nav-button" data-page="profilePage">
+            <span class="nav-icon">◉</span>
+            My Profile
+        </button>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-account" id="sidebarEmail">
+                Signed in
+            </div>
+            <button class="nav-button" id="sidebarLogout">
+                <span class="nav-icon">↪</span>
+                Logout
+            </button>
+        </div>
+    </aside>
+
+    <main class="main">
+
+        <header class="topbar">
+            <div style="display:flex;align-items:center;gap:12px">
+                <button class="mobile-menu" id="mobileMenu">☰</button>
+                <div class="topbar-title" id="topbarTitle">
+                    Compose & Validate
+                </div>
+            </div>
+
+            <div class="topbar-right">
+                <div class="profile-chip">
+                    <div class="avatar" id="topAvatar">U</div>
+                    <span id="topName">User</span>
+                    <span class="profile-email" id="topEmail"></span>
+                </div>
+                <button class="danger-btn" id="topLogout">
+                    Logout
+                </button>
+            </div>
+        </header>
+
+        <div class="content">
+
+            <!-- COMPOSE PAGE -->
+
+            <section id="composePage" class="page">
+
+                <div class="page-heading">
+                    <h1>Compose & Validate</h1>
+                    <p>
+                        Check email content, URLs and attachments before
+                        sending them through your mail system.
+                    </p>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-label">VALIDATION ENGINE</div>
+                        <div class="summary-value">OMG</div>
+                        <div class="summary-note">
+                            Content, URL and attachment checks
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-label">AUTHENTICATION</div>
+                        <div class="summary-value">Active</div>
+                        <div class="summary-note">
+                            Protected account session
+                        </div>
+                    </div>
+
+                    <div class="summary-card">
+                        <div class="summary-label">VALIDATION MODE</div>
+                        <div class="summary-value">Pre-send</div>
+                        <div class="summary-note">
+                            Validation does not send email
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="panel-title">Email details</div>
+                            <div class="panel-description">
+                                Enter the email details you want to validate.
+                            </div>
+                        </div>
+                    </div>
+
+                    <form id="analyzeForm">
+
+                        <div class="form-grid">
+
+                            <div class="field span-two">
+    <label for="recipients">Recipients (optional)</label>
+    <input id="recipients" type="text"
+           placeholder="user@example.com, user2@example.com">
+    <div class="form-help">
+        Separate multiple email addresses with commas.
+        You can leave this field empty.
+    </div>
 </div>
 
-<div id="settingsOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-  <div class="modal"><div class="modalhead"><h3 id="settingsTitle">Portal integration settings</h3><button class="btn" type="button" id="closeSettings">Close</button></div>
-    <div class="settingsbody">
-      <div class="field"><label for="apiOrigin">OMG API origin</label><input class="textbox" id="apiOrigin" type="text" spellcheck="false" autocomplete="off" placeholder="http://127.0.0.1:8000"><p>Only the origin (host + port), without /api/v1/analyze.</p></div>
-      <div class="field"><label for="apiKey">X-OMG-API-Key</label><input class="textbox" id="apiKey" type="password" autocomplete="off" placeholder="Local API key, if configured"><p>Kept in memory only; never written to browser storage.</p></div>
-      <div class="field"><label for="sendPath">Real email-sending backend path (optional)</label><input class="textbox" id="sendPath" type="text" spellcheck="false" autocomplete="off" placeholder="/api/v1/send"><p>Leave blank to simulate successful sending in this browser tab. DEMO messages appear in Sent, but recipients receive nothing. This route is NOT included in OMG; configure it only if you have a real server-side sending service.</p></div>
-      <div class="field"><label for="inboxPath">Inbox API path (optional)</label><input class="textbox" id="inboxPath" type="text" spellcheck="false" autocomplete="off" placeholder="/api/mail/inbox"><p>Leave blank to display example inbox messages.</p></div>
-      <div class="field"><label for="sentPath">Sent API path (optional)</label><input class="textbox" id="sentPath" type="text" spellcheck="false" autocomplete="off" placeholder="/api/mail/sent"><p>Optional GET route for real sent-mail history.</p></div>
-      <div class="modalfoot"><button class="btn primary" id="applySettings" type="button">Apply settings</button></div>
-    </div><div class="settingsbottom">DEMO MODE simulates sending and stores demo Sent items only in the current browser tab. For REAL delivery, the server must authenticate the sender, revalidate the exact content/files, and enforce warning acknowledgment; the browser never connects directly to SMTP.</div>
-  </div>
+                            <div class="field span-two">
+                                <label for="subject">Subject</label>
+                                <input id="subject" type="text"
+                                       placeholder="Enter email subject"
+                                       required>
+                            </div>
+
+                            <div class="field span-two">
+                                <label for="body">Email body</label>
+                                <textarea id="body"
+                                          placeholder="Write your email content here..."
+                                          required></textarea>
+                            </div>
+
+                            <div class="field span-two">
+                                <label for="htmlContent">
+                                    HTML content (optional)
+                                </label>
+                                <textarea id="htmlContent"
+                                          placeholder="Optional HTML email content..."
+                                          style="min-height:100px"></textarea>
+                                <div class="form-help">
+                                    Use this field when you need to validate
+                                    the HTML version of your email.
+                                </div>
+                            </div>
+
+                            <div class="field span-two">
+                                <label>Attachments (optional)</label>
+                                <div class="file-area">
+                                    <label for="attachments">
+                                        + Select attachment files
+                                    </label>
+                                    <input id="attachments" type="file"
+                                           multiple>
+                                    <div class="form-help">
+                                        Select one or more files to include
+                                        in attachment validation.
+                                    </div>
+                                    <div id="fileList" class="file-list"></div>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="form-actions">
+                            <button class="primary-btn" type="submit"
+                                    id="analyzeButton">
+                                Validate Email
+                            </button>
+
+                            <button class="secondary-btn" type="button"
+                                    id="clearButton">
+                                Clear Form
+                            </button>
+
+                            <span id="analyzeProgress"
+                                  class="loading-text"></span>
+                        </div>
+
+                        <div id="formError" class="error-message"></div>
+                    </form>
+                </div>
+
+                <!-- VALIDATION RESULT -->
+
+                <div id="resultSection" class="result-section hidden">
+                    <div class="panel">
+
+                        <div class="result-top">
+                            <div>
+                                <div class="panel-title">
+                                    Validation result
+                                </div>
+                                <div class="panel-description"
+                                     id="resultDescription">
+                                    Email validation completed.
+                                </div>
+                            </div>
+
+                            <div style="text-align:right">
+                                <div id="overallStatus"
+                                     class="status-pill status-safe">
+                                    SAFE
+                                </div>
+                                <div class="result-score"
+                                     style="margin-top:8px">
+                                    <span id="overallScore">--</span>
+                                    <small>/ 100</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="result-grid">
+
+                            <div class="result-module">
+                                <div class="module-name">CONTENT</div>
+                                <div class="module-status" id="contentStatus">
+                                    --
+                                </div>
+                                <div class="module-score" id="contentScore">
+                                    Score: --
+                                </div>
+                            </div>
+
+                            <div class="result-module">
+                                <div class="module-name">URL</div>
+                                <div class="module-status" id="urlStatus">
+                                    --
+                                </div>
+                                <div class="module-score" id="urlScore">
+                                    Score: --
+                                </div>
+                            </div>
+
+                            <div class="result-module">
+                                <div class="module-name">ATTACHMENTS</div>
+                                <div class="module-status"
+                                     id="attachmentStatus">--</div>
+                                <div class="module-score"
+                                     id="attachmentScore">Score: --</div>
+                            </div>
+
+                        </div>
+
+                        <div id="acknowledgementArea"></div>
+
+                        <div class="result-detail">
+                            <h4>Validation details</h4>
+                            <pre id="resultDetails">No result available.</pre>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- HISTORY PAGE -->
+
+            <section id="historyPage" class="page hidden">
+
+                <div class="page-heading">
+                    <h1>Validation History</h1>
+                    <p>
+                        Review previous email validation records
+                        associated with your account.
+                    </p>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="panel-title">Recent validations</div>
+                            <div class="panel-description">
+                                Records retrieved from your account's validation data.
+                            </div>
+                        </div>
+
+                        <button class="secondary-btn" id="refreshHistory">
+                            Refresh
+                        </button>
+                    </div>
+
+                    <div id="historyMessage" class="empty-state">
+                        <strong>Loading validation history</strong>
+                        Please wait...
+                    </div>
+
+                    <div class="table-wrap hidden" id="historyTableWrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>SUBJECT</th>
+                                    <th>STATUS</th>
+                                    <th>SCORE</th>
+                                    <th>DATE</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+
+<!-- DATA EXPLORER PAGE -->
+
+<section id="dataExplorerPage" class="page hidden">
+
+    <div class="page-heading">
+        <h1>Data Explorer</h1>
+        <p>
+            View users and validation records across all accounts.
+            Filter, search, sort and export validation data.
+        </p>
+    </div>
+
+    <div class="summary-grid">
+        <div class="summary-card">
+            <div class="summary-label">TOTAL RECORDS</div>
+            <div class="summary-value" id="explorerTotalRecords">--</div>
+            <div class="summary-note">Matching validation records</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">TOTAL USERS</div>
+            <div class="summary-value" id="explorerTotalUsers">--</div>
+            <div class="summary-note">Unique email addresses</div>
+        </div>
+
+        <div class="summary-card">
+            <div class="summary-label">CURRENT PAGE</div>
+            <div class="summary-value" id="explorerCurrentPage">1</div>
+            <div class="summary-note" id="explorerPageInfo">Page information</div>
+        </div>
+    </div>
+
+    <div class="panel">
+
+        <div class="panel-header">
+            <div>
+                <div class="panel-title">Database Records</div>
+                <div class="panel-description">
+                    Explore validation records and unique users.
+                </div>
+            </div>
+
+            <button class="secondary-btn" id="explorerRefresh">
+                Refresh
+            </button>
+        </div>
+
+        <!-- FILTERS -->
+
+        <div class="form-grid">
+
+            <div class="field">
+                <label for="explorerView">View</label>
+                <select id="explorerView">
+                    <option value="records">All Records</option>
+                    <option value="users">Unique Users</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="explorerSearch">Search</label>
+                <input id="explorerSearch"
+                       type="text"
+                       placeholder="Search email, subject or status">
+            </div>
+
+            <div class="field">
+                <label for="explorerStatus">Status</label>
+                <select id="explorerStatus">
+                    <option value="ALL">All Statuses</option>
+                    <option value="SAFE">SAFE</option>
+                    <option value="WARNING">WARNING</option>
+                    <option value="RESTRICTED">RESTRICTED</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="explorerSort">Sort By</label>
+                <select id="explorerSort">
+                    <option value="created_at">Created Date</option>
+                    <option value="status">Status</option>
+                    <option value="confidence_score">Confidence Score</option>
+                    <option value="email.subject">Email Subject</option>
+                    <option value="user_email">User Email</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="explorerOrder">Sort Order</label>
+                <select id="explorerOrder">
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="explorerPageSize">Records Per Page</label>
+                <select id="explorerPageSize">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label for="explorerStartDate">Start Date</label>
+                <input type="date" id="explorerStartDate">
+            </div>
+
+            <div class="field">
+                <label for="explorerEndDate">End Date</label>
+                <input type="date" id="explorerEndDate">
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+
+            <button class="primary-btn" id="explorerApply">
+                Apply Filters
+            </button>
+
+            <button class="secondary-btn" id="explorerReset">
+                Reset Filters
+            </button>
+
+            <button class="secondary-btn" id="explorerExport">
+                Export CSV
+            </button>
+
+        </div>
+
+        <div id="explorerMessage" class="empty-state hidden">
+            Loading data...
+        </div>
+
+        <!-- DATA TABLE -->
+
+        <div class="table-wrap hidden" id="explorerTableWrap"
+             style="margin-top:20px">
+
+            <table style="min-width:850px">
+
+                <thead id="explorerTableHead">
+                    <tr>
+                        <th>RECORD ID</th>
+                        <th>USER EMAIL</th>
+                        <th>SUBJECT</th>
+                        <th>STATUS</th>
+                        <th>SCORE</th>
+                        <th>CREATED DATE</th>
+                    </tr>
+                </thead>
+
+                <tbody id="explorerTableBody"></tbody>
+
+            </table>
+
+        </div>
+
+        <!-- PAGINATION -->
+
+        <div class="form-actions"
+             id="explorerPagination"
+             style="justify-content:space-between;margin-top:20px">
+
+            <button class="secondary-btn" id="explorerPrevious">
+                Previous
+            </button>
+
+            <span id="explorerPaginationText"
+                  class="loading-text">
+                Page 1
+            </span>
+
+            <button class="secondary-btn" id="explorerNext">
+                Next
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
+            <!-- PROFILE PAGE -->
+
+            <section id="profilePage" class="page hidden">
+
+                <div class="page-heading">
+                    <h1>My Profile</h1>
+                    <p>
+                        View the account currently authenticated
+                        with the OMG validation service.
+                    </p>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div>
+                            <div class="panel-title">Account information</div>
+                            <div class="panel-description">
+                                Information retrieved from your authenticated session.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="profile-details">
+                        <div class="key">Full name</div>
+                        <div id="profileName">--</div>
+
+                        <div class="key">Email address</div>
+                        <div id="profileEmail">--</div>
+
+                        <div class="key">Account ID</div>
+                        <div id="profileId">--</div>
+
+                        <div class="key">Session status</div>
+                        <div>Authenticated</div>
+                    </div>
+
+                    <div style="margin-top:25px">
+                        <button class="danger-btn" id="profileLogout">
+                            Logout from account
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
 </div>
 
-<div id="verdictOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
-  <div class="modal"><div class="modalhead"><h3 id="popupTitle">Security review</h3><span id="popupState" class="verdict">WARNING</span></div>
-    <div class="modalbody"><p id="popupMessage"></p><ul id="popupReasons" class="findinglist"></ul>
-      <label class="checkrow hidden" id="ackRow"><input id="ack" type="checkbox"><span id="ackLabel">I reviewed the warnings and acknowledge them before sending.</span></label>
-      <div class="modalfoot"><button class="btn" id="editMail" type="button">Edit mail</button><button class="btn" id="popupAction" type="button">Acknowledge</button></div>
+<!-- WARNING / RESTRICTED POPUP -->
+
+<div id="validationPopup" class="popup-overlay hidden">
+    <div id="validationPopupCard" class="popup-card">
+
+        <div class="popup-heading">
+            <div id="validationPopupIcon" class="popup-icon">!</div>
+            <div>
+                <div id="validationPopupTitle" class="popup-title">
+                    Validation Warning
+                </div>
+            </div>
+        </div>
+
+        <p id="validationPopupMessage" class="popup-subtitle"></p>
+
+        <div class="popup-reasons">
+            <h4>Reason(s) detected</h4>
+            <ul id="validationPopupReasons"></ul>
+            <div id="validationPopupNoReasons"
+                 class="popup-no-reasons hidden">
+                No additional reason details were returned by the server.
+            </div>
+        </div>
+
+        <div id="popupRestrictedNote"
+             class="popup-restricted-note hidden">
+            This email is RESTRICTED. Sending is not permitted.
+        </div>
+
+        <label id="popupAcknowledgement"
+               class="popup-acknowledgement hidden">
+            <input type="checkbox" id="popupAcknowledgeCheckbox">
+            <span>
+                I have reviewed the warning reasons and acknowledge
+                the validation warning.
+            </span>
+        </label>
+
+        <div class="popup-actions">
+            <button type="button"
+                    class="secondary-btn hidden"
+                    id="validationPopupEdit">
+                Edit mail
+            </button>
+            <button type="button"
+                    class="secondary-btn"
+                    id="validationPopupClose">
+                Close
+            </button>
+        </div>
+
     </div>
-  </div>
 </div>
+<div id="toast" class="toast hidden"></div>
+
 <script>
-(function(){
-  'use strict';
-  const $ = id => document.getElementById(id);
-  const demoInbox = [
-    {id:'sample-1',from:'Operations Desk',to:'you@example.com',subject:'Shipment status and dispatch summary',body:'The latest package dispatch summary is ready for review.\nThis is a sample inbox item, not an actual email.',when:'09:24',sample:true},
-    {id:'sample-2',from:'Finance Team',to:'you@example.com',subject:'Invoice processing update',body:'October invoices have been processed.\nThis is example mailbox data.',when:'Yesterday',sample:true},
-    {id:'sample-3',from:'Project Team',to:'you@example.com',subject:'Review notes for the monthly release',body:'Please review the latest changes by Friday.\nThis is a sample message.',when:'Mon',sample:true}
-  ];
-  const state = { folder:'inbox', drafts:[], sent:[], activity:[], inbox:demoInbox, mailSelected:null, lastValidation:null, validatedSignature:null, pendingAction:null, busy:false, restricted:false, restrictedSnapshot:null, config:{sendPath:'',inboxPath:'',sentPath:''} };
-  const maxFiles=5, maxEach=3*1024*1024, maxTotal=10*1024*1024;
-  $('apiOrigin').value = ['http:','https:'].includes(location.protocol) ? location.origin : 'http://127.0.0.1:8000';
+/* =========================================================
+   API CONFIGURATION
+   =========================================================*/
 
-  function apiOrigin(){
-    let url; try{url=new URL($('apiOrigin').value.trim())}catch(_){throw Error('Enter an API origin such as http://127.0.0.1:8000')}
-    if(!['http:','https:'].includes(url.protocol)||url.pathname!=='/'||url.search||url.hash||url.username||url.password)throw Error('API origin must contain only scheme, host and optional port.');
-    return url.origin;
-  }
-  function safePath(input){
-    const path=input.trim();
-    if(!path)return '';
-    if(!path.startsWith('/')||path.startsWith('//')||path.includes('\\')||/[?#]/.test(path))throw Error('Mail API paths must be relative to the OMG origin (example: /api/v1/send).');
-    if(path==='/api/v1/analyze')throw Error('The validation endpoint does not send emails. Configure an actual sending route.');
-    return path;
-  }
-  function headers(){const key=$('apiKey').value.trim();return key?{'X-OMG-API-Key':key}:{};}
-  function recipients(){return $('to').value.split(/[,;\n]+/).map(s=>s.trim()).filter(Boolean);}
-  function attachedFiles(){return [...($('files').files||[])];}
-  function humanSize(n){return n>=1024*1024?(n/(1024*1024)).toFixed(1)+' MB':(n/1024).toFixed(0)+' KB';}
-  function getPayload(){
-    const subject=$('subject').value.trim(), body=$('body').value, html=$('html').value, to=recipients(), files=attachedFiles();
-    if(!subject)throw Error('Enter an email subject.');
-    if(!to.length)throw Error('Enter at least one recipient.');
-    if(to.some(t=>!/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(t)))throw Error('Check the recipient email addresses.');
-    if(!body.trim()&&!html.trim())throw Error('Enter an email body or HTML content.');
-    if(files.length>maxFiles)throw Error('Maximum 5 attachments per email.');
-    if(files.some(f=>f.size>maxEach))throw Error('Each attachment must be 3 MiB or smaller.');
-    if(files.reduce((n,f)=>n+f.size,0)>maxTotal)throw Error('Total attachment size must be 10 MiB or smaller.');
-    return {subject,body,html,recipients:to,files};
-  }
-  function signature(p){return JSON.stringify([p.subject,p.body,p.html,p.recipients,p.files.map(f=>[f.name,f.size,f.lastModified,f.type])]);}
-  function formFor(p, extra){const form=new FormData();form.append('subject',p.subject);form.append('body',p.body);form.append('html',p.html);form.append('recipients',JSON.stringify(p.recipients));for(const f of p.files)form.append('files',f,f.name);if(extra)for(const [key,value] of Object.entries(extra)) if(value!==undefined&&value!==null)form.append(key,String(value));return form;}
-  function notice(msg,type){const el=$('notice');el.textContent=msg||'';el.className='notice'+(msg?' show':'')+(type?' '+type:'');}
-  // Delivery status is separate from OMG's SAFE / WARNING / RESTRICTED verdict.
-  // Only a positive confirmation from the server-side send endpoint can show SENT.
-  function deliveryStatus(kind, detail){
-    const labels={
-      idle:['EMAIL NOT SENT','—'],
-      validating:['VALIDATING EMAIL — NOT SENT','…'],
-      preview:['EMAIL NOT SENT — DEMO MODE','!'],
-      simulated:['EMAIL SENT — DEMO SIMULATION ONLY','✓'],
-      review:['EMAIL NOT SENT — REVIEW REQUIRED','!'],
-      blocked:['EMAIL NOT SENT — BLOCKED','×'],
-      failed:['EMAIL NOT SENT — FAILED','×'],
-      unknown:['SEND STATUS UNKNOWN','?'],
-      queued:['EMAIL QUEUED — NOT YET SENT','…'],
-      sent:['EMAIL SENT SUCCESSFULLY','✓']
+const API_BASE = "";
+const AUTHORIZATION_ENDPOINT = "/api/v1/authorization";
+const ANALYZE_ENDPOINT = "/api/v1/analyze";
+
+/* Change this to match the history route in your backend. */
+const HISTORY_ENDPOINT = "/api/v1/json_view";
+
+const FIELD_NAMES = {
+    recipients: "recipients",
+    subject: "subject",
+    body: "body",
+    html: "html_content",
+    attachments: "attachments"
+};
+
+const TOKEN_KEY = "omg_access_token";
+
+let currentUser = null;
+let selectedFiles = [];
+let latestResult = null;
+let toastTimer = null;
+
+
+/* =========================================================
+   BASIC HELPERS
+========================================================= */
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+function apiUrl(path) {
+    return API_BASE.replace(/\/$/, "") + path;
+}
+
+function getToken() {
+    return sessionStorage.getItem(TOKEN_KEY);
+}
+
+function authHeaders() {
+    const token = getToken();
+
+    return token
+        ? { "Authorization": "Bearer " + token }
+        : {};
+}
+
+async function readResponse(response) {
+    const text = await response.text();
+
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return { detail: text };
+    }
+}
+
+function showToast(message, type = "") {
+    const toast = $("toast");
+
+    toast.textContent = message;
+    toast.className = "toast";
+
+    if (type) toast.classList.add(type);
+
+    clearTimeout(toastTimer);
+
+    toastTimer = setTimeout(() => {
+        toast.classList.add("hidden");
+    }, 3500);
+}
+
+function showAuthMessage(id, message) {
+    $(id).textContent = message || "";
+}
+
+function setBusy(button, busy, busyText, normalText) {
+    button.disabled = busy;
+    button.textContent = busy ? busyText : normalText;
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+    })[char]);
+}
+
+function formatDate(value) {
+    if (!value) return "--";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return String(value);
+
+    return date.toLocaleString();
+}
+
+
+/* =========================================================
+   AUTHENTICATION UI
+========================================================= */
+
+function showLoginScreen() {
+    $("appScreen").classList.add("hidden");
+    $("authScreen").classList.remove("hidden");
+    $("loginPanel").classList.remove("hidden");
+    $("registerPanel").classList.add("hidden");
+}
+
+function showRegisterScreen() {
+    $("loginPanel").classList.add("hidden");
+    $("registerPanel").classList.remove("hidden");
+}
+
+function showAuthenticatedDashboard(user) {
+    currentUser = user;
+
+    $("authScreen").classList.add("hidden");
+    $("appScreen").classList.remove("hidden");
+
+    const name = user.name || "User";
+    const email = user.email || "";
+
+    $("topName").textContent = name;
+    $("topEmail").textContent = email;
+    $("sidebarEmail").textContent = email;
+    $("topAvatar").textContent = name.trim().charAt(0).toUpperCase();
+
+    $("profileName").textContent = name;
+    $("profileEmail").textContent = email;
+    $("profileId").textContent = user.id || "--";
+
+    showPage("composePage");
+}
+
+$("showRegister").addEventListener("click", showRegisterScreen);
+
+$("showLogin").addEventListener("click", () => {
+    $("loginPanel").classList.remove("hidden");
+    $("registerPanel").classList.add("hidden");
+});
+
+
+/* =========================================================
+   REGISTER
+========================================================= */
+
+$("registerForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const button = $("registerSubmit");
+    showAuthMessage("registerMessage", "");
+
+    const payload = {
+        action: "register",
+        name: $("registerName").value.trim(),
+        email: $("registerEmail").value.trim(),
+        password: $("registerPassword").value
     };
-    const [title,symbol]=labels[kind]||labels.idle;
-    $('deliveryStatus').className='delivery-status '+(labels[kind]?kind:'idle');
-    $('deliveryTitle').textContent=title;
-    $('deliveryIcon').textContent=symbol;
-    $('deliveryDetail').textContent=detail||'No send request has been made.';
-  }
-  function setBusy(active,message){
-    state.busy=active;
-    $('busy').classList.toggle('show',active);
-    $('busyText').textContent=message||'Validating...';
-    // RESTRICTED must stay disabled after the validation request completes.
-    $('sendBtn').disabled=active || state.restricted;
-    ['saveDraft','newMail','clearCompose','checkApi'].forEach(id=>$(id).disabled=active);
-  }
-  async function call(path, init, timeoutMs=90000){
-    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),timeoutMs);
-    try{
-      const response=await fetch(apiOrigin()+path,{...init,signal:controller.signal,cache:'no-store'});
-      const raw=await response.text();let body;try{body=JSON.parse(raw)}catch(_){body={detail:raw.slice(0,1000)||'Empty response'}};
-      if(!response.ok)throw Error('HTTP '+response.status+': '+(typeof body.detail==='string'?body.detail:JSON.stringify(body.detail||body)));
-      return body;
-    }catch(error){if(error.name==='AbortError')throw Error('Request timed out.');if(error instanceof TypeError)throw Error('Cannot reach backend. Check the API origin, server, HTTPS/CORS and network.');throw error}
-    finally{clearTimeout(timeout)}
-  }
-  function findURLs(){
-    const sources=[$('subject').value,$('body').value,$('html').value];
-    const urls=[];const re=/\b(?:https?:\/\/|www\.)[^\s<>"'`]+/gi;
-    for(const text of sources){for(const value of text.matchAll(re)){const u=value[0].replace(/[),.;!?]+$/,'');if(u&&!urls.includes(u))urls.push(u)}}
-    for(const value of $('html').value.matchAll(/href\s*=\s*["']([^"']+)["']/gi)) {const u=value[1];if(/^https?:\/\//i.test(u)&&!urls.includes(u))urls.push(u)}
-    return urls;
-  }
-  function renderURLs(){const vals=findURLs();$('urlCount').textContent=vals.length+' detected';const list=$('urlList');list.replaceChildren();if(!vals.length){const el=document.createElement('span');el.className='hint';el.textContent='No URLs present';list.append(el)}else for(const val of vals){const chip=document.createElement('span');chip.className='urlchip';chip.textContent=val;list.append(chip)}}
-  function renderFiles(){const holder=$('fileList');holder.replaceChildren();attachedFiles().forEach((file,index)=>{const chip=document.createElement('span');chip.className='filetag';chip.append(document.createTextNode(file.name+' · '+humanSize(file.size)));const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.title='Remove '+file.name;remove.setAttribute('aria-label','Remove '+file.name);remove.addEventListener('click',()=>{const dt=new DataTransfer();attachedFiles().forEach((f,i)=>{if(i!==index)dt.items.add(f)});$('files').files=dt.files;renderFiles();resetResult()});chip.append(remove);holder.append(chip)})}
-  function mark(tag,value){const el=$(tag);el.textContent=value||'Not checked';el.style.color=value==='RESTRICTED'?'#b93445':value==='WARNING'?'#a36615':value==='SAFE'?'#087758':''}
-  function score(s){return typeof s==='number'&&Number.isFinite(s)?s.toFixed(1)+' / 100 (policy index)':'—'}
-  function overallScore(s){return typeof s==='number'&&Number.isFinite(s)?s.toFixed(1)+' / 100':'—'}
-  function overallDetail(status){return status==='SAFE'?'Policy index · SAFE range 85-100':status==='WARNING'?'Policy index · WARNING range 75-84.9':status==='RESTRICTED'?'Policy index · RESTRICTED range 0-74.9':'Awaiting validation'}
-  // Snapshot the current compose fields so clicking Close cannot unlock a RESTRICTED draft.
-  function draftFingerprint(){
-    return JSON.stringify([$('to').value,$('subject').value,$('body').value,$('html').value,
-      attachedFiles().map(f=>[f.name,f.size,f.lastModified,f.type])]);
-  }
-  function resetResult(){
-    state.restricted=false;
-    state.restrictedSnapshot=null;
-    state.pendingAction=null;
-    $('sendBtn').disabled=state.busy;
-    $('sendBtn').title='';
-    state.lastValidation=null;state.validatedSignature=null;$('verdict').className='verdict';$('verdict').textContent='NOT CHECKED';$('resultMessage').textContent='Your email will be checked automatically when you click Send.';$('overallScoreValue').textContent='—';$('overallScoreDetail').textContent='Not checked';$('overallBand').className='verdict';$('overallBand').textContent='NOT CHECKED';for(const id of ['textStatus','urlStatus','attachmentStatus'])mark(id,'Not checked');for(const id of ['textScore','urlScore','attachmentScore'])$(id).textContent='—';$('findingList').replaceChildren();$('rawJson').textContent='Not checked';$('scannerWarning').classList.add('hidden');notice('');deliveryStatus('idle','No send request has been made.');}
-  function showResult(data){
-    const stat=data.status||'ERROR';$('verdict').textContent=stat;$('verdict').className='verdict '+stat;
-    const overall=data.confidence_score;
-    $('overallScoreValue').textContent=overallScore(overall);$('overallBand').textContent=stat;$('overallBand').className='verdict '+stat;
-    $('overallScoreDetail').textContent=overallDetail(stat)+(typeof overall==='number'?' · aggregated from all modules':'');
-    $('resultMessage').textContent=stat==='SAFE'?'No configured rule flagged this message. In demo mode a send is simulated, not delivered.':stat==='WARNING'?'Potential issues detected. Review and acknowledge before requesting a send.':'Security policy has blocked sending.';
-    const modules=[['text',data.text,'textStatus','textScore'],['URL',data.URL,'urlStatus','urlScore'],['attachments',data.attachments,'attachmentStatus','attachmentScore']];
-    for(const [key,value,statusId,scoreId] of modules){if(value==='empty'||value===undefined||value===null){mark(statusId,'EMPTY');$(scoreId).textContent='Not supplied';continue}
-      if(Array.isArray(value)){const statuses=value.map(v=>v.status);mark(statusId,statuses.includes('RESTRICTED')?'RESTRICTED':statuses.includes('WARNING')?'WARNING':statuses.every(x=>x==='SAFE')?'SAFE':'RESULT');const vals=value.map(v=>v.confidence_score).filter(x=>typeof x==='number');$(scoreId).textContent=vals.length?score(Math.min(...vals)):'—';continue}
-      mark(statusId,value.status||'RESULT');$(scoreId).textContent=score(value.confidence_score)}
-    const items=[];
-    for(const source of ['text','URL']) {const obj=data[source];if(obj&&typeof obj==='object'&&!Array.isArray(obj))for(const x of obj.issues||[])items.push({source,code:x.code,reason:x.reason||x.message})}
-    if(Array.isArray(data.attachments))for(const a of data.attachments)for(const x of a.issues||[])items.push({source:a.filename||'attachment',code:x.code,reason:x.reason||x.message});
-    if(!items.length&&data.popup&&Array.isArray(data.popup.reasons))for(const x of data.popup.reasons)items.push({source:'policy',reason:typeof x==='string'?x:JSON.stringify(x)});
-    $('findingList').replaceChildren();for(const x of items.slice(0,25)){const li=document.createElement('li');li.textContent=(x.source?x.source+' · ':'')+(x.code?x.code+': ':'')+(x.reason||'Security finding');$('findingList').append(li)}
-    $('scannerWarning').classList.toggle('hidden',!Array.isArray(data.warnings)||!data.warnings.length);$('scannerWarning').textContent=(data.warnings||[]).join(' · ');
-    $('rawJson').textContent=JSON.stringify(data,null,2);
-  }
-  function noteActivity(type,p,data,msg){state.activity.unshift({id:'a'+Date.now(),from:type,to:p.recipients.join(', '),subject:p.subject,body:msg||('Validation status: '+(data&&data.status||'UNKNOWN')),when:new Date().toLocaleTimeString(),sample:false});updateCounts();if(state.folder==='activity')renderFolder()}
-  async function analyze(p){
-    const useFiles=p.files.length>0;
-    const init=useFiles?{method:'POST',headers:headers(),body:formFor(p)}:{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({subject:p.subject,body:p.body,html:p.html,recipients:p.recipients,attachments:[]})};
-    const data=await call('/api/v1/analyze',init);
-    if(!['SAFE','WARNING','RESTRICTED'].includes(data.status))throw Error('Unexpected response: missing valid OMG security decision.');
-    state.lastValidation=data;state.validatedSignature=signature(p);showResult(data);return data;
-  }
-  function openVerdict(data){
-    $('verdictOverlay').classList.add('show');$('popupTitle').textContent=(data.popup&&data.popup.title)||(data.status==='WARNING'?'Email Warning':'Email Restricted');$('popupState').textContent=data.status;$('popupState').className='verdict '+data.status;
-    $('popupMessage').textContent=(data.popup&&data.popup.message)||(data.status==='WARNING'?'Review this email before requesting delivery.':'Sending is blocked by security policy.');
-    const ul=$('popupReasons');ul.replaceChildren();const reasons=(data.popup&&data.popup.reasons)||[];
-    for(const reason of reasons){const li=document.createElement('li');li.textContent=typeof reason==='string'?reason:reason.reason||reason.message||JSON.stringify(reason);ul.append(li)}
-    $('ack').checked=false;
-    $('ackRow').classList.toggle('hidden',data.status!=='WARNING');
-    $('ackLabel').textContent=state.config.sendPath?'I reviewed the warnings and request server-side acknowledgment before sending.':'I reviewed the warnings. Continue with a simulated demo send (no real email delivery).';
-    $('editMail').classList.toggle('hidden',data.status==='RESTRICTED');
-    $('popupAction').textContent=data.status==='RESTRICTED'?'Close':(state.config.sendPath?'Acknowledge & request send':'Acknowledge & send (demo)');
-    $('popupAction').className='btn '+(data.status==='RESTRICTED'?'':'primary');
-    $('popupAction').disabled=data.status==='WARNING';
-  }
-  function closeVerdict(){$('verdictOverlay').classList.remove('show');$('editMail').classList.remove('hidden')}
-  function simulateSend(p,data,ack){
-    // Browser-only simulation. NEVER claim any email has been accepted by a mail provider.
-    // Only validated SAFE, or validated WARNING with an explicit acknowledgment, is eligible.
-    if(!['SAFE','WARNING'].includes(data.status) ||
-       (data.status==='SAFE' && data.can_send!==true) ||
-       (data.status==='WARNING' && !ack) ||
-       state.validatedSignature!==signature(p)){
-      deliveryStatus('blocked','Demo send blocked: the current message is not authorized for simulation.');
-      return;
-    }
-    const item={id:'demo'+Date.now(),from:'Me · DEMO',to:p.recipients.join(', '),
-      subject:p.subject,body:p.body,html:p.html,
-      when:new Date().toLocaleTimeString(),sample:false,simulated:true};
-    state.sent.unshift(item);
-    noteActivity('DEMO SEND (NOT DELIVERED)',p,data,
-      'Simulation only. '+data.status+(ack?' with acknowledgment':'')+'. No email was delivered.');
-    updateCounts();
-    if(state.folder==='sent')renderFolder();
-    deliveryStatus('simulated','Validation: '+data.status+(ack?' (warning acknowledged)':'')+'. Added to the demo Sent folder. No actual email was delivered to '+p.recipients.join(', ')+'.');
-    notice('Demo send completed. This is a visual simulation; the recipient did not receive an email.','good');
-  }
-  async function deliver(p,data,ack){
-    if(!state.config.sendPath){
-      simulateSend(p,data,ack);
-      return;
-    }
-    deliveryStatus('validating','Validation passed. Requesting a send through your configured mail backend.');
-    setBusy(true,'Requesting delivery from the mail backend...');
-    try{
-      // The backend must independently revalidate exact content/files and verify warning acknowledgement.
-      const extra=ack?{warning_acknowledged:'true',warning_challenge:data.warning_challenge||''}:{};
-      const result=await call(state.config.sendPath,{method:'POST',headers:headers(),body:formFor(p,extra)},120000);
-      // HTTP 200 and OMG SAFE alone do not mean sent. Confirm a documented delivery result.
-      if(result.sent===true){
-        const item={id:'s'+Date.now(),from:'Me',to:p.recipients.join(', '),subject:p.subject,body:p.body,when:new Date().toLocaleTimeString(),sample:false};
-        state.sent.unshift(item);
-        noteActivity('MAIL SENT',p,data,JSON.stringify({message_id:result.message_id||null,status:'Sent (reported by mail backend)'}));
-        updateCounts();
-        deliveryStatus('sent','Mail backend confirmed sent'+(result.message_id?' (message ID: '+result.message_id+')':'')+'. This does not prove recipient inbox delivery.');
-        notice('');
-        if(state.folder==='sent')renderFolder();
-      } else if(result.queued===true || result.accepted===true){
-        noteActivity('MAIL QUEUED',p,data,JSON.stringify({message_id:result.message_id||null,status:'Queued / accepted, not confirmed sent'}));
-        deliveryStatus('queued','Mail backend accepted or queued this message, but has not confirmed sending. Check your server queue or delivery logs.');
-        notice('');
-      } else {
-        // May have reached the backend; do not wrongly declare that it definitely was not sent.
-        deliveryStatus('unknown','The delivery backend did not confirm a send. Check server logs before retrying.');
-        notice('Backend response did not contain sent:true, queued:true, or accepted:true.','fail');
-        noteActivity('SEND UNCONFIRMED',p,data,'Delivery backend did not return a recognized delivery confirmation.');
-      }
-    }catch(err){
-      deliveryStatus('unknown','The send request failed or its result was not confirmed. Check the mail backend before retrying.');
-      notice('Send not confirmed: '+err.message,'fail');
-      noteActivity('SEND UNCONFIRMED',p,data,err.message);
-    }finally{setBusy(false)}
-  }
-  async function onSend(){
-    // The button is disabled as well, but guard against programmatic invocation.
-    if(state.busy || state.restricted)return;
-    notice('');let p;
-    try{p=getPayload();apiOrigin()}catch(err){deliveryStatus('failed','No send request made: '+err.message);notice(err.message,'fail');return}
-    deliveryStatus('validating','Checking subject, body, URLs, and attachments before any delivery.');
-    setBusy(true,'Checking subject, body, URLs, and attachments...');let data;
-    try{data=await analyze(p);noteActivity('OMG '+data.status,p,data)}
-    catch(err){
-      resetResult();
-      deliveryStatus('failed','OMG validation failed. The message was not submitted for sending.');
-      notice('Email was not sent. Validation failed: '+err.message,'fail');return;
-    }finally{setBusy(false)}
-    // If the composer changed during the API call, the result is stale.
-    // Never treat a verdict for previous content as permission to send the new content.
-    try{
-      if(signature(getPayload())!==signature(p)){
-        resetResult();
-        deliveryStatus('review','Message changed during validation. Nothing was sent. Click Send again to validate the updated email.');
-        notice('Email changed during inspection. Please submit it for a fresh OMG check.','fail');
-        return;
-      }
-    }catch(_){
-      resetResult();
-      deliveryStatus('failed','Message changed during validation. Nothing was sent.');
-      notice('Correct the email fields and click Send to validate again.','fail');
-      return;
-    }
-    if(data.status==='RESTRICTED'){
-      state.restricted=true;
-      state.restrictedSnapshot=draftFingerprint();
-      $('sendBtn').disabled=true;
-      $('sendBtn').title='Blocked by OMG: modify the email to run another validation.';
-      deliveryStatus('blocked','EMAIL NOT SENT — RESTRICTED. Send Email is disabled. Close this popup, correct the message, and revalidate.');
-      state.pendingAction={snapshot:signature(p),data};
-      openVerdict(data);
-      return;
-    }
-    if(data.status==='WARNING'){
-      deliveryStatus('review','OMG classified this message WARNING. No send has been requested; acknowledgment is required.');
-      state.pendingAction={snapshot:signature(p),data};openVerdict(data);return;
-    }
-    if(data.status==='SAFE'&&data.can_send===true){await deliver(p,data,false);return}
-    deliveryStatus('blocked','OMG did not authorize a send.');
-    notice('Sending blocked: backend did not grant send permission.','fail');
-  }
-  function clearCompose(){if(state.busy)return;$('to').value='';$('subject').value='';$('body').value='';$('html').value='';$('files').value='';renderURLs();renderFiles();resetResult();}
-  function loadCompose(message){$('to').value=message.to||'';$('subject').value=message.subject||'';$('body').value=message.body||'';$('html').value=message.html||'';$('files').value='';renderURLs();renderFiles();resetResult();$('subject').focus();}
-  function saveDraft(){try{const p=getPayload();state.drafts.unshift({id:'d'+Date.now(),from:'Me',to:p.recipients.join(', '),subject:p.subject,body:p.body,html:p.html,when:new Date().toLocaleTimeString(),sample:false});updateCounts();notice('Draft saved in this browser tab (not uploaded or persisted). Attachments are not saved.','good');if(state.folder==='drafts')renderFolder()}catch(err){notice(err.message,'fail')}}
-  function updateCounts(){$('sentCount').textContent=state.sent.length;$('draftCount').textContent=state.drafts.length;$('inboxCount').textContent=state.inbox.length}
-  function itemsForFolder(){return state.folder==='inbox'?state.inbox:state.folder==='sent'?state.sent:state.folder==='drafts'?state.drafts:state.activity}
-  function renderFolder(){
-    const titles={inbox:'Inbox',sent:'Sent',drafts:'Drafts',activity:'Validation log'};const subtitles={inbox:state.config.inboxPath?'Connected mailbox API':'Example mailbox · not synchronized with an email provider',sent:state.config.sentPath?'Connected sent-mail API':(state.config.sendPath?'Messages confirmed by the configured mail backend':'DEMO Sent · simulated messages only; no actual delivery'),drafts:'Drafts kept in this tab only · attachments are not retained',activity:'Local session log · not a delivery audit trail'};
-    $('folderTitle').textContent=titles[state.folder];$('folderSub').textContent=subtitles[state.folder];$('listTitle').textContent=titles[state.folder];$('listKind').textContent=state.folder==='inbox'&&!state.config.inboxPath?'SAMPLE MAIL':state.folder==='activity'?'SESSION ONLY':'MAIL ITEMS';
-    document.querySelectorAll('.navitem').forEach(button=>button.classList.toggle('active',button.dataset.folder===state.folder));
-    const term=$('mailSearch').value.toLowerCase().trim();const entries=itemsForFolder().filter(x=>(x.subject+' '+x.from+' '+x.body).toLowerCase().includes(term));const holder=$('messages');holder.replaceChildren();$('reader').classList.remove('show');
-    if(!entries.length){const empty=document.createElement('div');empty.className='emptybox';const strong=document.createElement('strong');strong.textContent='No messages to display';empty.append(strong,document.createTextNode(state.folder==='inbox'?'Check your Inbox API settings or search again.':'This folder is empty in the current session.'));holder.append(empty);return}
-    for(const mail of entries){const button=document.createElement('button');button.className='mailitem';button.type='button';const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent=(mail.from||'?').slice(0,1).toUpperCase();const wrapper=document.createElement('span');wrapper.style.minWidth='0';const header=document.createElement('span');header.className='mailhead';const sender=document.createElement('strong');sender.textContent=mail.from||'Unknown';const time=document.createElement('time');time.textContent=mail.when||'';header.append(sender,time);const subj=document.createElement('span');subj.className='mailsub';subj.style.display='block';subj.textContent=mail.subject||'(No subject)';const preview=document.createElement('span');preview.className='mailpreview';preview.style.display='block';preview.textContent=(mail.simulated?'[DEMO · NOT DELIVERED] ':(mail.sample?'[SAMPLE] ':''))+(mail.body||'').replace(/\n/g,' ');wrapper.append(header,subj,preview);button.append(avatar,wrapper);
-      button.addEventListener('click',()=>{holder.querySelectorAll('.mailitem').forEach(x=>x.classList.remove('selected'));button.classList.add('selected');$('readerSubject').textContent=mail.subject||'(No subject)';$('readerMeta').textContent=(mail.simulated?'DEMO SIMULATION · NOT DELIVERED · ':(mail.sample?'SAMPLE · ':''))+'From: '+(mail.from||'Unknown')+' · To: '+(mail.to||'—');$('readerBody').textContent=mail.body||'';$('reader').classList.add('show');if(state.folder==='drafts')loadCompose(mail)});holder.append(button)}
-  }
-  function normalizeMail(raw){const items=Array.isArray(raw)?raw:Array.isArray(raw.messages)?raw.messages:null;if(!items)throw Error('Mailbox response must be an array or {"messages": [...]}.');return items.slice(0,200).map((m,i)=>({id:String(m.id||i),from:String(m.from||m.sender||'Unknown'),to:String(m.to||''),subject:String(m.subject||'(No subject)'),body:String(m.body||m.preview||''),when:String(m.when||m.date||''),sample:false}))}
-  async function refreshMailbox(){const route=state.folder==='inbox'?state.config.inboxPath:state.folder==='sent'?state.config.sentPath:'';if(!route)return;try{const data=await call(route,{method:'GET',headers:headers()});const list=normalizeMail(data);if(state.folder==='inbox')state.inbox=list;else state.sent=list;updateCounts();renderFolder()}catch(err){notice('Mailbox loading failed: '+err.message,'fail')}}
-  function openSettings(){$('settingsOverlay').classList.add('show')}
-  function closeSettings(){$('settingsOverlay').classList.remove('show')}
-  function applySettings(){try{apiOrigin();const sendPath=safePath($('sendPath').value),inboxPath=safePath($('inboxPath').value),sentPath=safePath($('sentPath').value);state.config={sendPath,inboxPath,sentPath};$('modeTag').textContent=sendPath?'GATEWAY CONFIGURED':'DEMO SEND MODE';closeSettings();renderFolder();notice(sendPath?'Mail gateway configured. The server must revalidate and enforce policy before actual sending.':'Demo send mode: SAFE emails simulate sending; WARNING emails require acknowledgment; RESTRICTED emails cannot be sent. No real delivery occurs.','good');if(state.folder==='inbox'||state.folder==='sent')refreshMailbox()}catch(err){window.alert(err.message)}}
-  async function checkApi(){try{const schema=await call('/openapi.json',{method:'GET'});const ok=!!(schema.paths&&schema.paths['/api/v1/analyze']&&schema.paths['/api/v1/analyze'].post);$('connection').textContent=ok?'OMG API available':'API route not found';$('connection').className='connection '+(ok?'online':'offline');if(!ok)notice('The server responded but /api/v1/analyze is missing. Check your OMG version.','fail')}catch(err){$('connection').textContent='API unavailable';$('connection').className='connection offline';notice(err.message,'fail')}}
 
-  function composeChanged(){
-    renderURLs();
-    // If the user has not actually changed the RESTRICTED draft, keep Send disabled.
-    if(state.restricted && draftFingerprint()===state.restrictedSnapshot)return;
-    resetResult();
-    if($('deliveryTitle').textContent==='EMAIL NOT SENT'){
-      deliveryStatus('idle','The message has changed. Click Send email for a fresh security validation.');
+    if (payload.password.length < 8) {
+        showAuthMessage(
+            "registerMessage",
+            "Password must contain at least 8 characters."
+        );
+        return;
     }
-  }
-  for(const id of ['to','subject','body','html'])$(id).addEventListener('input',composeChanged);
-  $('files').addEventListener('change',()=>{renderFiles();composeChanged()});
-  $('sendBtn').addEventListener('click',onSend);
-  $('saveDraft').addEventListener('click',saveDraft);
-  $('clearCompose').addEventListener('click',clearCompose);
-  $('newMail').addEventListener('click',()=>{clearCompose();$('composePanel').scrollIntoView({behavior:'smooth',block:'start'});$('to').focus()});
-  $('checkApi').addEventListener('click',checkApi);
-  $('settingsBtn').addEventListener('click',openSettings);
-  $('closeSettings').addEventListener('click',closeSettings);
-  $('applySettings').addEventListener('click',applySettings);
-  $('mailSearch').addEventListener('input',renderFolder);
-  document.querySelectorAll('.navitem').forEach(btn=>btn.addEventListener('click',()=>{state.folder=btn.dataset.folder;$('mailSearch').value='';renderFolder();refreshMailbox();$('mailboxPanel').scrollIntoView({behavior:'smooth',block:'start'})}));
-  $('editMail').addEventListener('click',closeVerdict);
-  $('ack').addEventListener('change',()=>{$('popupAction').disabled=!$('ack').checked});
-  $('popupAction').addEventListener('click',async()=>{
-    const data=state.pendingAction&&state.pendingAction.data;closeVerdict();if(!data)return;
-    if(data.status==='RESTRICTED'){
-      // Close only: do NOT erase the draft or clear its RESTRICTED lock.
-      state.pendingAction=null;
-      state.restricted=true;
-      $('sendBtn').disabled=true;
-      $('sendBtn').title='Blocked by OMG: modify the email to run another validation.';
-      deliveryStatus('blocked','EMAIL NOT SENT — RESTRICTED. Send Email is disabled until the draft changes and is revalidated.');
-      notice('Popup closed. Your draft is preserved; sending remains blocked. Edit the message to validate again.','fail');
-      return;
+
+    setBusy(button, true, "Creating account...", "Create account");
+
+    try {
+        const response = await fetch(apiUrl(AUTHORIZATION_ENDPOINT), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await readResponse(response);
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Registration failed.");
+        }
+
+        showToast("Account created. Please sign in.", "success");
+
+        $("registerForm").reset();
+        $("loginEmail").value = payload.email;
+
+        $("loginPanel").classList.remove("hidden");
+        $("registerPanel").classList.add("hidden");
+
+    } catch (error) {
+        showAuthMessage("registerMessage", error.message);
+    } finally {
+        setBusy(button, false, "", "Create account");
     }
-    if(!$('ack').checked){deliveryStatus('review','Warning acknowledgment was not completed. Nothing was sent.');notice('Warning acknowledgment was not completed. Nothing was sent.','fail');return}
-    try{const p=getPayload();if(signature(p)!==state.pendingAction.snapshot){resetResult();deliveryStatus('review','Message changed after inspection. Click Send again to revalidate.');notice('Message changed after inspection. Click Send again to revalidate.','fail');return}await deliver(p,data,true)}catch(err){deliveryStatus('failed','Could not prepare the message for sending.');notice(err.message,'fail')}
-  });
-  $('settingsOverlay').addEventListener('click',e=>{if(e.target===$('settingsOverlay'))closeSettings()});
-  $('verdictOverlay').addEventListener('click',e=>{if(e.target===$('verdictOverlay'))closeVerdict()});
-  renderURLs();renderFiles();renderFolder();updateCounts();
-})();
+});
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+$("loginForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const button = $("loginSubmit");
+
+    showAuthMessage("loginMessage", "");
+
+    const payload = {
+    action: "login",
+    email: $("loginEmail").value.trim(),
+    password: $("loginPassword").value
+};
+
+    setBusy(button, true, "Signing in...", "Sign in");
+
+    try {
+        const response = await fetch(apiUrl(AUTHORIZATION_ENDPOINT), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+            cache: "no-store"
+        });
+
+        const data = await readResponse(response);
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Login failed.");
+        }
+
+        if (!data.access_token) {
+            throw new Error("The server did not return an access token.");
+        }
+
+        sessionStorage.setItem(TOKEN_KEY, data.access_token);
+
+        const profile = await fetchProfile();
+
+        showAuthenticatedDashboard(profile);
+
+        $("loginForm").reset();
+
+        showToast("Successfully signed in.", "success");
+
+    } catch (error) {
+        sessionStorage.removeItem(TOKEN_KEY);
+        showAuthMessage("loginMessage", error.message);
+    } finally {
+        setBusy(button, false, "", "Sign in");
+    }
+});
+
+
+/* =========================================================
+   PROFILE
+========================================================= */
+
+async function fetchProfile() {
+    const response = await fetch(apiUrl(AUTHORIZATION_ENDPOINT), {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders()
+        },
+        body: JSON.stringify({
+            action: "profile"
+        }),
+        cache: "no-store"
+    });
+
+    const data = await readResponse(response);
+
+    if (!response.ok) {
+        throw new Error(data.detail || "Unable to load account profile.");
+    }
+
+    if (!data.user) {
+        throw new Error("Invalid profile response from server.");
+    }
+
+    return data.user;
+}
+
+
+/* =========================================================
+   LOGOUT
+========================================================= */
+
+async function logout() {
+    const token = getToken();
+
+    try {
+        if (token) {
+            await fetch(apiUrl(AUTHORIZATION_ENDPOINT), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...authHeaders()
+                },
+                body: JSON.stringify({
+                    action: "logout"
+                }),
+                cache: "no-store"
+            });
+        }
+    } catch (error) {
+        console.error("Logout request failed:", error);
+    } finally {
+        sessionStorage.removeItem(TOKEN_KEY);
+        currentUser = null;
+        latestResult = null;
+        showLoginScreen();
+        showToast("You have been logged out.");
+    }
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+function showPage(pageId) {
+    document.querySelectorAll(".page").forEach(page => {
+        page.classList.add("hidden");
+    });
+
+    $(pageId).classList.remove("hidden");
+
+    document.querySelectorAll(".nav-button[data-page]").forEach(button => {
+        button.classList.toggle(
+            "active",
+            button.dataset.page === pageId
+        );
+    });
+
+    const titles = {
+    composePage: "Compose & Validate",
+    historyPage: "Validation History",
+    dataExplorerPage: "Data Explorer",
+    profilePage: "My Profile"
+};
+
+    $("topbarTitle").textContent = titles[pageId] || "OMG";
+
+    $("sidebar").classList.remove("open");
+
+    if (pageId === "historyPage") {
+        loadHistory();
+    }
+
+    if (pageId === "dataExplorerPage") {
+    loadDataExplorer();
+    }
+
+    if (pageId === "profilePage") {
+        refreshProfile();
+    }
+}
+
+document.querySelectorAll(".nav-button[data-page]").forEach(button => {
+    button.addEventListener("click", () => {
+        showPage(button.dataset.page);
+    });
+});
+
+$("mobileMenu").addEventListener("click", () => {
+    $("sidebar").classList.toggle("open");
+});
+
+
+async function refreshProfile() {
+    try {
+        const user = await fetchProfile();
+
+        currentUser = user;
+
+        $("profileName").textContent = user.name || "--";
+        $("profileEmail").textContent = user.email || "--";
+        $("profileId").textContent = user.id || "--";
+    } catch (error) {
+        showToast(error.message, "error");
+    }
+}
+
+
+/* =========================================================
+   ATTACHMENT SELECTION
+========================================================= */
+
+$("attachments").addEventListener("change", event => {
+    const incoming = Array.from(event.target.files || []);
+
+    selectedFiles = [...selectedFiles, ...incoming];
+
+    renderFiles();
+
+    /* Reset the input so the same file can be selected again. */
+    event.target.value = "";
+});
+
+function renderFiles() {
+    const container = $("fileList");
+
+    container.innerHTML = "";
+
+    selectedFiles.forEach((file, index) => {
+        const item = document.createElement("div");
+
+        item.className = "file-item";
+
+        const name = document.createElement("span");
+        name.textContent =
+            file.name + " (" + formatBytes(file.size) + ")";
+
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "remove-file";
+        remove.textContent = "Remove";
+
+        remove.addEventListener("click", () => {
+            selectedFiles.splice(index, 1);
+            renderFiles();
+        });
+
+        item.appendChild(name);
+        item.appendChild(remove);
+
+        container.appendChild(item);
+    });
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+
+    return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+
+/* =========================================================
+   EMAIL VALIDATION REQUEST
+========================================================= */
+
+function getRecipients() {
+    return $("recipients").value
+        .split(",")
+        .map(value => value.trim())
+        .filter(Boolean);
+}
+
+function validateForm() {
+    if (!getToken()) {
+        showLoginScreen();
+        return false;
+    }
+
+    // Recipients are optional.
+    // Validate addresses only when the user enters them.
+    const recipients = getRecipients();
+
+    const invalidRecipients = recipients.filter(email => {
+        return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    });
+
+    if (invalidRecipients.length) {
+        throw new Error(
+            "Please enter valid recipient email addresses."
+        );
+    }
+
+    if (!$("subject").value.trim()) {
+        throw new Error("Enter the email subject.");
+    }
+
+    if (!$("body").value.trim() && !$("htmlContent").value.trim()) {
+        throw new Error("Enter email body or HTML content.");
+    }
+
+    return true;
+}
+
+function buildAnalyzeRequest() {
+    const formData = new FormData();
+
+    // Add recipients only when provided.
+    const recipients = getRecipients();
+
+    if (recipients.length > 0) {
+        formData.append(
+            FIELD_NAMES.recipients,
+            recipients.join(",")
+        );
+    }
+
+    formData.append(
+        FIELD_NAMES.subject,
+        $("subject").value.trim()
+    );
+
+    formData.append(
+        FIELD_NAMES.body,
+        $("body").value
+    );
+
+    if ($("htmlContent").value.trim()) {
+        formData.append(
+            FIELD_NAMES.html,
+            $("htmlContent").value
+        );
+    }
+
+    selectedFiles.forEach(file => {
+        formData.append(
+            FIELD_NAMES.attachments,
+            file,
+            file.name
+        );
+    });
+
+    return formData;
+}
+
+$("analyzeForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    $("formError").textContent = "";
+    $("resultSection").classList.add("hidden");
+
+    const button = $("analyzeButton");
+
+    try {
+        validateForm();
+
+        setBusy(button, true, "Validating...", "Validate Email");
+
+        $("analyzeProgress").textContent =
+            "Checking content, URLs and attachments...";
+
+        const formData = buildAnalyzeRequest();
+
+        const response = await fetch(apiUrl(ANALYZE_ENDPOINT), {
+            method: "POST",
+            headers: authHeaders(),
+            body: formData,
+            cache: "no-store"
+        });
+
+        const data = await readResponse(response);
+
+        if (response.status === 401) {
+            sessionStorage.removeItem(TOKEN_KEY);
+            showLoginScreen();
+            throw new Error("Session expired. Please sign in again.");
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || data.message || "Email validation failed."
+            );
+        }
+
+        latestResult = data;
+
+        renderResult(data);
+
+        showToast("Email validation completed.", "success");
+
+    } catch (error) {
+        $("formError").textContent = error.message;
+    } finally {
+        setBusy(button, false, "", "Validate Email");
+        $("analyzeProgress").textContent = "";
+    }
+});
+
+/* =========================================================
+   WARNING / RESTRICTED POPUP
+========================================================= */
+
+function collectValidationReasons(data) {
+    const reasons = [];
+
+    function addReason(value) {
+        if (typeof value === "string" && value.trim()) {
+            reasons.push(value.trim());
+        } else if (Array.isArray(value)) {
+            value.forEach(addReason);
+        } else if (value && typeof value === "object") {
+            // Extract common reason fields from backend objects.
+            [
+                "reason",
+                "message",
+                "description",
+                "finding",
+                "error",
+                "detail"
+            ].forEach(key => {
+                if (value[key]) addReason(value[key]);
+            });
+
+            // Handle nested findings and errors.
+            [
+                "reasons",
+                "findings",
+                "errors",
+                "advisories",
+                "warnings"
+            ].forEach(key => {
+                if (value[key]) addReason(value[key]);
+            });
+        }
+    }
+
+    // Overall backend reasons.
+    addReason(data.Error);
+    addReason(data.errors);
+    addReason(data.findings);
+
+    // Popup details, if supplied by the backend.
+    if (data.popup && typeof data.popup === "object") {
+        addReason(data.popup.reasons);
+        addReason(data.popup.message);
+    }
+
+    // Module-specific reasons.
+    addReason(data.text);
+    addReason(data.content);
+    addReason(data.URL);
+    addReason(data.url);
+    addReason(data.attachments);
+
+    // Remove duplicate reasons.
+    return [...new Set(reasons)];
+}
+
+function showValidationPopup(data, status) {
+    const popup = $("validationPopup");
+    const card = $("validationPopupCard");
+    const acknowledgement = $("popupAcknowledgement");
+    const checkbox = $("popupAcknowledgeCheckbox");
+    const closeButton = $("validationPopupClose");
+    const editButton = $("validationPopupEdit");
+
+    if (status !== "WARNING" && status !== "RESTRICTED") {
+        popup.classList.add("hidden");
+        return;
+    }
+
+    const isWarning = status === "WARNING";
+
+    const backendPopup =
+        data.popup && typeof data.popup === "object"
+            ? data.popup
+            : {};
+
+    card.className = "popup-card " +
+        (isWarning ? "popup-warning" : "popup-restricted");
+
+    $("validationPopupIcon").textContent =
+        isWarning ? "!" : "×";
+
+    $("validationPopupTitle").textContent =
+        backendPopup.title ||
+        (isWarning
+            ? "Email Warning"
+            : "Email Restricted");
+
+    $("validationPopupMessage").textContent =
+        backendPopup.message ||
+        (isWarning
+            ? "Potential risks were identified in this email. Review the reasons before proceeding."
+            : "This email failed the security validation policy and cannot be sent.");
+
+    const reasons = collectValidationReasons(data);
+    const reasonsList = $("validationPopupReasons");
+    const noReasons = $("validationPopupNoReasons");
+
+    reasonsList.innerHTML = "";
+
+    if (reasons.length > 0) {
+        noReasons.classList.add("hidden");
+
+        reasons.forEach(reason => {
+            const item = document.createElement("li");
+            item.textContent = reason;
+            reasonsList.appendChild(item);
+        });
+    } else {
+        noReasons.classList.remove("hidden");
+    }
+
+    acknowledgement.classList.toggle("hidden", !isWarning);
+    editButton.classList.toggle("hidden", !isWarning);
+
+    $("popupRestrictedNote").classList.toggle(
+        "hidden",
+        isWarning
+    );
+
+    checkbox.checked = false;
+
+    // WARNING: acknowledgement is required before closing.
+    // RESTRICTED: close is allowed, but sending remains blocked.
+    closeButton.disabled = isWarning;
+
+    closeButton.textContent = "Close";
+
+    popup.classList.remove("hidden");
+}
+
+$("popupAcknowledgeCheckbox").addEventListener("change", event => {
+    $("validationPopupClose").disabled = !event.target.checked;
+});
+
+$("validationPopupClose").addEventListener("click", () => {
+    const status = latestResult
+        ? normalizeStatus(latestResult.status)
+        : "";
+
+    if (status === "WARNING" &&
+        !$("popupAcknowledgeCheckbox").checked) {
+        return;
+    }
+
+    $("validationPopup").classList.add("hidden");
+});
+
+$("validationPopupEdit").addEventListener("click", () => {
+    $("validationPopup").classList.add("hidden");
+    $("body").focus();
+    $("body").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+/* =========================================================
+   RESULT RENDERING
+========================================================= */
+
+function findValue(object, paths) {
+    for (const path of paths) {
+        const value = path.split(".").reduce((item, key) => {
+            return item == null ? undefined : item[key];
+        }, object);
+
+        if (value !== undefined && value !== null) {
+            return value;
+        }
+    }
+
+    return null;
+}
+
+function normalizeStatus(value) {
+    const status = String(value || "").toUpperCase();
+
+    if (status.includes("RESTRICTED") || status.includes("BLOCK")) {
+        return "RESTRICTED";
+    }
+
+    if (status.includes("WARNING")) {
+        return "WARNING";
+    }
+
+    if (status.includes("SAFE") || status.includes("ALLOW")) {
+        return "SAFE";
+    }
+
+    return status || "NOT AVAILABLE";
+}
+
+function statusClass(status) {
+    if (status === "SAFE") return "status-safe";
+    if (status === "WARNING") return "status-warning";
+
+    return "status-restricted";
+}
+
+function renderModule(statusId, scoreId, data, possiblePaths) {
+    const status = normalizeStatus(
+        findValue(data, possiblePaths.status)
+    );
+
+    const score = findValue(data, possiblePaths.score);
+
+    $(statusId).textContent = status;
+
+    $(scoreId).textContent =
+        score !== null ? "Score: " + score : "Score unavailable";
+}
+
+function renderResult(data) {
+    $("resultSection").classList.remove("hidden");
+
+    const overallStatus = normalizeStatus(
+        findValue(data, ["status", "overall_status", "result.status"])
+    );
+
+    const score = findValue(data, [
+        "confidence_score",
+        "overall_score",
+        "score"
+    ]);
+
+    $("overallStatus").textContent = overallStatus;
+    $("overallStatus").className =
+        "status-pill " + statusClass(overallStatus);
+
+    $("overallScore").textContent =
+        score !== null ? score : "--";
+
+    $("resultDescription").textContent =
+        overallStatus === "SAFE"
+            ? "The validation policy classified this email as SAFE."
+            : overallStatus === "WARNING"
+                ? "The validation policy identified items requiring acknowledgement."
+                : "The validation policy restricted this email.";
+
+    const contentData = data.text || data.content || {};
+    const urlData = data.URL || data.url || {};
+    const attachmentData =
+        data.attachments && typeof data.attachments === "object"
+            ? data.attachments
+            : {};
+
+    renderModule(
+        "contentStatus",
+        "contentScore",
+        contentData,
+        {
+            status: ["status", "result", "verdict"],
+            score: ["confidence_score", "score", "safety_score"]
+        }
+    );
+
+    renderModule(
+        "urlStatus",
+        "urlScore",
+        urlData,
+        {
+            status: ["status", "result", "verdict"],
+            score: ["confidence_score", "score", "safety_score"]
+        }
+    );
+
+    renderModule(
+        "attachmentStatus",
+        "attachmentScore",
+        attachmentData,
+        {
+            status: ["status", "result", "verdict"],
+            score: ["confidence_score", "score", "safety_score"]
+        }
+    );
+
+    $("acknowledgementArea").innerHTML = "";
+
+    $("resultDetails").textContent =
+        JSON.stringify(data, null, 2);
+    showValidationPopup(data, overallStatus);
+
+    $("resultSection").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+
+/* =========================================================
+   CLEAR FORM
+========================================================= */
+
+$("clearButton").addEventListener("click", () => {
+    $("analyzeForm").reset();
+
+    selectedFiles = [];
+    latestResult = null;
+
+    renderFiles();
+
+    $("formError").textContent = "";
+    $("resultSection").classList.add("hidden");
+
+    showToast("Form cleared.");
+});
+
+
+/* =========================================================
+   VALIDATION HISTORY
+=========================================================*/
+
+async function loadHistory() {
+    const message = $("historyMessage");
+    const tableWrap = $("historyTableWrap");
+    const tbody = $("historyTableBody");
+
+    message.classList.remove("hidden");
+    tableWrap.classList.add("hidden");
+    tbody.innerHTML = "";
+
+    message.innerHTML =
+        "<strong>Loading validation history</strong>Please wait...";
+
+    try {
+        const response = await fetch(apiUrl(HISTORY_ENDPOINT), {
+            method: "GET",
+            headers: authHeaders(),
+            cache: "no-store"
+        });
+
+        const data = await readResponse(response);
+
+        if (response.status === 401) {
+            sessionStorage.removeItem(TOKEN_KEY);
+            showLoginScreen();
+            throw new Error("Your session has expired. Please sign in again.");
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Unable to retrieve validation records."
+            );
+        }
+
+        // json_view returns records in the records array.
+        const records = Array.isArray(data.records)
+            ? data.records
+            : [];
+
+        if (!records.length) {
+            message.innerHTML =
+                "<strong>No validation records found</strong>" +
+                "Your previous validations will appear here.";
+            return;
+        }
+
+        records.forEach(record => {
+            const row = document.createElement("tr");
+
+            // Subject is stored inside the email object.
+            const subject = document.createElement("td");
+            subject.textContent =
+                record.email?.subject || "Untitled";
+
+            const statusCell = document.createElement("td");
+            const status = normalizeStatus(record.status);
+
+            const pill = document.createElement("span");
+            pill.className =
+                "status-pill " + statusClass(status);
+            pill.textContent = status;
+
+            statusCell.appendChild(pill);
+
+            const score = document.createElement("td");
+            score.textContent =
+                record.confidence_score ?? "--";
+
+            const date = document.createElement("td");
+            date.textContent = formatDate(record.created_at);
+
+            row.append(subject, statusCell, score, date);
+            tbody.appendChild(row);
+        });
+
+        message.classList.add("hidden");
+        tableWrap.classList.remove("hidden");
+
+    } catch (error) {
+        message.innerHTML =
+            "<strong>Unable to load history</strong>" +
+            escapeHtml(error.message);
+    }
+}
+
+
+$("refreshHistory").addEventListener("click", loadHistory);
+
+
+/* =========================================================
+   DATA EXPLORER
+========================================================= */
+
+let explorerPage = 1;
+let explorerTotalPages = 0;
+let explorerTotalRecords = 0;
+let explorerTotalUsers = 0;
+
+const EXPLORER_ENDPOINT = "/api/v1/json_view";
+
+
+function convertDateForAPI(value) {
+    if (!value) return "";
+
+    const parts = value.split("-");
+
+    // HTML date input: YYYY-MM-DD
+    // Backend expects: DD-MM-YYYY
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
+
+function getExplorerParams() {
+
+    const params = new URLSearchParams();
+
+    params.set("view", $("explorerView").value);
+    params.set("page", explorerPage);
+    params.set("page_size", $("explorerPageSize").value);
+    params.set("sort_by", $("explorerSort").value);
+    params.set("order", $("explorerOrder").value);
+
+    const search = $("explorerSearch").value.trim();
+
+    if (search) {
+        params.set("search", search);
+    }
+
+    const status = $("explorerStatus").value;
+
+    if (status !== "ALL") {
+        params.set("status", status);
+    }
+
+    const startDate = convertDateForAPI(
+        $("explorerStartDate").value
+    );
+
+    const endDate = convertDateForAPI(
+        $("explorerEndDate").value
+    );
+
+    if (startDate) {
+        params.set("start_date", startDate);
+    }
+
+    if (endDate) {
+        params.set("end_date", endDate);
+    }
+
+    return params;
+}
+
+
+function showExplorerMessage(message) {
+
+    $("explorerMessage").classList.remove("hidden");
+    $("explorerTableWrap").classList.add("hidden");
+
+    $("explorerMessage").innerHTML =
+        `<strong>${escapeHtml(message)}</strong>`;
+}
+
+
+function createExplorerCell(row, value) {
+
+    const cell = document.createElement("td");
+
+    cell.textContent =
+        value === null || value === undefined || value === ""
+            ? "--"
+            : String(value);
+
+    row.appendChild(cell);
+
+    return cell;
+}
+
+
+function renderExplorerRecords(data) {
+
+    const tbody = $("explorerTableBody");
+    const thead = $("explorerTableHead");
+
+    tbody.innerHTML = "";
+
+    const isUsersView = data.view === "users";
+
+    if (isUsersView) {
+
+        thead.innerHTML = `
+            <tr>
+                <th>USER EMAIL</th>
+            </tr>
+        `;
+
+        data.records.forEach(record => {
+
+            const row = document.createElement("tr");
+
+            createExplorerCell(
+                row,
+                record.user_email
+            );
+
+            tbody.appendChild(row);
+        });
+
+    } else {
+
+        thead.innerHTML = `
+            <tr>
+                <th>RECORD ID</th>
+                <th>USER EMAIL</th>
+                <th>SUBJECT</th>
+                <th>STATUS</th>
+                <th>SCORE</th>
+                <th>CREATED DATE</th>
+            </tr>
+        `;
+
+        data.records.forEach(record => {
+
+            const row = document.createElement("tr");
+
+            createExplorerCell(
+                row,
+                record.record_id
+            );
+
+            createExplorerCell(
+                row,
+                record.user_email
+            );
+
+            createExplorerCell(
+                row,
+                record.email?.subject
+            );
+
+            const statusCell = document.createElement("td");
+
+            const status = normalizeStatus(record.status);
+
+            const pill = document.createElement("span");
+
+            pill.className =
+                "status-pill " + statusClass(status);
+
+            pill.textContent = status;
+
+            statusCell.appendChild(pill);
+            row.appendChild(statusCell);
+
+            createExplorerCell(
+                row,
+                record.confidence_score
+            );
+
+            createExplorerCell(
+                row,
+                formatDate(record.created_at)
+            );
+
+            tbody.appendChild(row);
+        });
+    }
+
+    $("explorerMessage").classList.add("hidden");
+    $("explorerTableWrap").classList.remove("hidden");
+}
+
+
+async function loadDataExplorer() {
+
+    showExplorerMessage("Loading database records...");
+
+    try {
+
+        const params = getExplorerParams();
+
+        const response = await fetch(
+            apiUrl(EXPLORER_ENDPOINT + "?" + params.toString()),
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        const data = await readResponse(response);
+
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Unable to load database records."
+            );
+        }
+
+        if (!data.success || !Array.isArray(data.records)) {
+            throw new Error("Invalid response from JSON View endpoint.");
+        }
+
+        explorerTotalPages = data.total_pages || 0;
+
+        if (data.view === "users") {
+
+    const uniqueEmails = new Set(
+        data.records
+            .map(user => (
+                user.user_email ||
+                user.email ||
+                user._id ||
+                ""
+            ).toString().trim().toLowerCase())
+            .filter(Boolean)
+    );
+
+    explorerTotalUsers = data.total_users ?? uniqueEmails.size;
+
+    $("explorerTotalUsers").textContent =
+        explorerTotalUsers;
+
+    $("explorerTotalRecords").textContent = "--";
+
+}  else {
+
+            explorerTotalRecords = data.total_records || 0;
+
+            $("explorerTotalRecords").textContent =
+                explorerTotalRecords;
+
+            $("explorerTotalUsers").textContent = "--";
+        }
+
+        $("explorerCurrentPage").textContent =
+            data.page || explorerPage;
+
+        $("explorerPageInfo").textContent =
+            `${data.total_pages || 0} total pages`;
+
+        $("explorerPaginationText").textContent =
+            `Page ${data.page || 1} of ${data.total_pages || 0}`;
+
+        $("explorerPrevious").disabled =
+            (data.page || 1) <= 1;
+
+        $("explorerNext").disabled =
+            (data.page || 1) >= (data.total_pages || 0);
+
+        renderExplorerRecords(data);
+
+        if (data.records.length === 0) {
+            showExplorerMessage("No matching records found.");
+        }
+
+    } catch (error) {
+
+        console.error("Data Explorer error:", error);
+
+        showExplorerMessage(error.message);
+
+        showToast(error.message, "error");
+    }
+}
+
+
+/* APPLY FILTERS */
+
+$("explorerApply").addEventListener("click", () => {
+
+    if (
+        $("explorerStartDate").value &&
+        $("explorerEndDate").value &&
+        $("explorerStartDate").value > $("explorerEndDate").value
+    ) {
+        showToast(
+            "End date must not be before start date.",
+            "error"
+        );
+        return;
+    }
+
+    explorerPage = 1;
+
+    loadDataExplorer();
+});
+
+
+/* REFRESH */
+
+$("explorerRefresh").addEventListener("click", () => {
+
+    loadDataExplorer();
+});
+
+
+/* RESET FILTERS */
+
+$("explorerReset").addEventListener("click", () => {
+
+    $("explorerView").value = "records";
+    $("explorerSearch").value = "";
+    $("explorerStatus").value = "ALL";
+    $("explorerSort").value = "created_at";
+    $("explorerOrder").value = "desc";
+    $("explorerPageSize").value = "20";
+    $("explorerStartDate").value = "";
+    $("explorerEndDate").value = "";
+
+    explorerPage = 1;
+
+    loadDataExplorer();
+});
+
+
+/* PAGE SIZE */
+
+$("explorerPageSize").addEventListener("change", () => {
+
+    explorerPage = 1;
+
+    loadDataExplorer();
+});
+
+
+/* VIEW CHANGE */
+
+$("explorerView").addEventListener("change", () => {
+
+    explorerPage = 1;
+
+    loadDataExplorer();
+});
+
+
+/* PREVIOUS PAGE */
+
+$("explorerPrevious").addEventListener("click", () => {
+
+    if (explorerPage > 1) {
+
+        explorerPage--;
+
+        loadDataExplorer();
+    }
+});
+
+
+/* NEXT PAGE */
+
+$("explorerNext").addEventListener("click", () => {
+
+    if (explorerPage < explorerTotalPages) {
+
+        explorerPage++;
+
+        loadDataExplorer();
+    }
+});
+
+
+/* EXPORT CSV */
+
+$("explorerExport").addEventListener("click", async () => {
+
+    if ($("explorerView").value === "users") {
+
+        showToast(
+            "CSV export is available in All Records view.",
+            "error"
+        );
+
+        return;
+    }
+
+    try {
+
+        const params = getExplorerParams();
+
+        // Export all matching records, not only the current page.
+        params.set("export", "csv");
+
+        const response = await fetch(
+            apiUrl(EXPLORER_ENDPOINT + "?" + params.toString()),
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        if (!response.ok) {
+
+            const data = await readResponse(response);
+
+            throw new Error(
+                data.detail || "CSV export failed."
+            );
+        }
+
+        const blob = await response.blob();
+
+        const downloadUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+
+        link.href = downloadUrl;
+
+        link.download = "omg_validation_history.csv";
+
+        document.body.appendChild(link);
+
+        link.click();
+
+        link.remove();
+
+        URL.revokeObjectURL(downloadUrl);
+
+        showToast(
+            "CSV export downloaded successfully.",
+            "success"
+        );
+
+    } catch (error) {
+
+        showToast(error.message, "error");
+    }
+});
+
+
+/* =========================================================
+   STARTUP
+========================================================= */
+
+loadAuthenticatedUser();
+
 </script>
 </body>
 </html>
