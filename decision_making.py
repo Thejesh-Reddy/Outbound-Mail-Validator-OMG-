@@ -12,7 +12,7 @@ a fixed precedence:
 6. lowest module below 85               -> WARNING (investigation required)
 7. otherwise                            -> weighted policy score
 """
-
+from score_policy import normalize_confidence_score
 from math import isfinite
 
 from score_policy import (
@@ -92,6 +92,8 @@ def _report_findings(report):
                         for item in items
                         if isinstance(item, dict)
                     )
+    if report.get("status") == "RESTRICTED" and not normalized:
+        normalized.extend(item for item in (report.get("popup") or {}).get("reasons", []) if isinstance(item, dict))
     return normalized
 
 
@@ -214,12 +216,7 @@ def _module_result_from_report(module, report):
     )
     risk = calculate_risk_points(findings)
 
-    # A validator-provided confidence/safety score is the module's final score.
-    # The compatibility interface in hybrid_scoring.py uses that score directly
-    # and derives module risk as (100 - score). Keep the same contract in the
-    # portal path instead of re-projecting an already-scored module from its
-    # findings a second time. Findings and inspection state still control the
-    # verdict, so a score can never override a hard block or incomplete scan.
+    
     if explicit_score is not None:
         if status == "RESTRICTED" or blocking or not inspection_complete or explicit_score < WARNING_THRESHOLD:
             band = "RESTRICTED"
@@ -265,6 +262,7 @@ def _module_result_from_report(module, report):
     # final safety score as risk = 100 - safety_score. Do not aggregate the
     # pre-projection finding risk here, otherwise the portal and compatibility
     # interface can report different overall scores for the same module scores.
+    
     projection_risk = max(0.0, 100.0 - score)
 
     if status == "RESTRICTED":
@@ -314,8 +312,8 @@ def _public_finding(item, source):
 
 def _report_for_module(data, *, module):
     """Never let a malformed detector result disappear into a SAFE verdict."""
-    if isinstance(data, dict):
-        findings = data.get("findings", [])
+    if isinstance(data, dict) and data:
+        findings = data.get("findings", [] if module == "attachments" and isinstance(data.get("attachments"), list) and data.get("status") in {"SAFE", "WARNING", "RESTRICTED"} else None)
         if isinstance(findings, list) and all(isinstance(item, dict) for item in findings):
             return data
 
@@ -334,7 +332,7 @@ def _report_for_module(data, *, module):
     }
 
 
-def decide_email(content, urls, attachment_report=None):
+def decide_email(content, urls, attachment_report=None, *, content_present=True):
     """Adapt the existing validator reports to the hybrid decision engine.
 
     The validator report schemas and the endpoint response shape remain intact.
@@ -356,6 +354,9 @@ def decide_email(content, urls, attachment_report=None):
         for name, report in reports.items()
     ]
     decision = evaluate_email(results)
+    active = [r for r in results if (r.module == "content" and (content_present or r.findings or not r.inspection_complete)) or (r.module == "url" and (reports["url"].get("url_count") or r.findings or not r.inspection_complete)) or (r.module == "attachments" and attachment_report is not None)]
+    if len(active) == 1 and _score_status(active[0].safety_score, active[0].inspection_complete, active[0].findings) == decision["verdict"]:
+        decision["overall_safety_score"] = active[0].safety_score
     result_by_module = {item.module: item for item in results}
 
     validation_results = {}
@@ -377,11 +378,14 @@ def decide_email(content, urls, attachment_report=None):
             "confidence_score": result.safety_score,
             "safety_score": result.safety_score,
         }
-        if name == "url" and not report.get("url_count") and not public_report["findings"]:
+        if name == "url" and not report.get("url_count") and not public_report["findings"] and result.inspection_complete:
             validation_results["urls"] = "empty"
         else:
             validation_results[name if name != "url" else "urls"] = public_report
 
+    if not content_present and not result_by_module["content"].findings and result_by_module["content"].inspection_complete:
+        validation_results["content"]["status"] = "EMPTY"
+        validation_results["content"]["confidence_score"] = None
     attachment_result = result_by_module["attachments"]
     validation_results["attachments"] = {
         **reports["attachments"],
@@ -405,10 +409,7 @@ def decide_email(content, urls, attachment_report=None):
 
     return {
         "status": decision["verdict"],
-        "can_send": decision["sending_allowed"],
         "confidence_score": decision["overall_safety_score"],
-        "requires_acknowledgement": decision["verdict"] == Verdict.WARNING.value,
-        "confidence_source": "hybrid_weighted_policy_score",
         "validation_results": validation_results,
         "findings": raw_findings,
         "warning_challenge": reports["attachments"].get("warning_challenge"),

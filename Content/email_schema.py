@@ -1,6 +1,6 @@
 import re
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator, ValidationInfo
 
 _EMAIL_LIKE = re.compile(r"^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$")
 
@@ -8,19 +8,19 @@ _EMAIL_LIKE = re.compile(r"^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$")
 class EmailRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     channel: Literal["email"] = "email"
-    subject: str = Field(..., min_length=1, max_length=998)
+    subject: str = Field(default="", max_length=998)
     # `body` is the plain-text email body. `html` remains supported for
     # existing Notify clients that submit HTML content. At least one is required.
     body: str | None = Field(default=None, max_length=1_000_000)
     html: str | None = Field(default=None, max_length=1_000_000)
-    recipients: list[str] = Field(..., min_length=1, max_length=100)
+    recipients: list[str] = Field(default_factory=list)
     attachments: list[dict] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")
-    def require_email_content(self):
+    def require_email_content(self, info: ValidationInfo):
         body_present = self.body is not None and bool(self.body.strip())
         html_present = self.html is not None and bool(self.html.strip())
-        if not body_present and not html_present:
+        if not (self.subject.strip() or body_present or html_present or self.attachments or (info.context or {}).get("uploaded")):
             raise ValueError("provide a non-empty email body using 'body' or 'html'")
         return self
 
@@ -38,8 +38,6 @@ class EmailRequest(BaseModel):
     @field_validator("subject")
     @classmethod
     def subject_not_whitespace(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("subject must not be whitespace only")
         return value.strip()
 
     @field_validator("recipients")

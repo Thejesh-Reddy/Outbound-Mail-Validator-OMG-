@@ -5,11 +5,13 @@ inside the existing server-side send/queue route before any email is queued.
 A green/SAFE response is only an *attachment* verdict.
 """
 from __future__ import annotations
+import logging
 
 import os
 from pathlib import Path
 from typing import Any
 
+from .content_risk_rules import detect_lure_patterns
 from starlette.datastructures import UploadFile
 from .attachments import load_policy, validate_attachments
 from .attachment_ml import MLDetector
@@ -50,9 +52,8 @@ if os.getenv('OMG_ENV', 'development').lower() == 'production':
 
 def restricted(reason: str, code: str, filename: str = '(attachments)') -> dict[str, Any]:
     return with_decision_metadata({
-        'status': 'RESTRICTED', 'can_send': False,
-        'popup': {'show': True, 'type': 'RESTRICTED', 'title': 'Email Restricted', 'message': 'Email sending is blocked. Remove or replace the restricted attachment.',
-                  'reasons': [{'filename': filename, 'code': code, 'reason': reason}], 'actions': ['CLOSE']},
+        'status': 'RESTRICTED',
+        'popup': {'show': True, 'type': 'RESTRICTED', 'title': 'Email Restricted', 'message': 'Email sending is blocked. Remove or replace the restricted attachment.','reasons': [{'filename': filename, 'code': code, 'reason': reason}], 'actions': ['CLOSE']},
         'attachments': [], 'scope': 'ATTACHMENTS_ONLY',
     })
 
@@ -74,20 +75,17 @@ def normalize_result(report: dict[str, Any]) -> dict[str, Any]:
     common = {'attachments': attachments, 'scope': 'ATTACHMENTS_ONLY',
               'warnings': report.get('warnings', []), 'advisories': advisory_reasons}
     if block_reasons or report['status'] == 'RESTRICTED':
-        return with_decision_metadata({**common, 'status': 'RESTRICTED', 'can_send': False,
-            'requires_acknowledgement': False,
+        return with_decision_metadata({**common, 'status': 'RESTRICTED',
             'popup': {'show': True, 'type': 'RESTRICTED', 'title': 'Email Restricted',
                 'actions': ['DISCARD_MAIL'], 'message': 'Email sending is blocked. Correct or remove the restricted attachment and validate again.',
                 'reasons': block_reasons}})
     if advisory_reasons:
-        return with_decision_metadata({**common, 'status': 'WARNING', 'can_send': False,
-            'requires_acknowledgement': True,
+        return with_decision_metadata({**common, 'status': 'WARNING',
             'popup': {'show': True, 'type': 'WARNING', 'title': 'Email Warning',
                 'message': 'Minor attachment concern. You may edit the email or close this warning and proceed.',
                 'reasons': advisory_reasons,
                 'actions': ['EDIT_MAIL', 'CLOSE']}})
-    return with_decision_metadata({**common, 'status': 'SAFE', 'can_send': True,
-            'requires_acknowledgement': False, 'popup': None})
+    return with_decision_metadata({**common, 'status': 'SAFE', 'popup': None})
 
 
 def scan_bytes(items: list[tuple[str, bytes]]) -> dict[str, Any]:
@@ -150,6 +148,7 @@ def scan_bytes(items: list[tuple[str, bytes]]) -> dict[str, Any]:
                 attachment['status'] = 'WARNING'
         return normalize_result(report)
     except Exception:
+        logging.getLogger(__name__).exception("Attachment scanner failed")
         # Do not expose parser stack traces or allow the mail through on failures.
         return restricted('Attachment security engine could not finish validation', 'SCANNER_FAILURE')
 
@@ -207,8 +206,5 @@ async def authorize_uploads_before_send(uploads: list[UploadFile], *,
     from .warning_ack import verify_warning_challenge
     if not warning_acknowledged or not verify_warning_challenge(warning_challenge, items):
         return False, report
-    report['can_send'] = True
-    report['requires_acknowledgement'] = False
-    report['warning_acknowledged'] = True
     report['popup'] = None
     return True, report

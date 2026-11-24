@@ -52,22 +52,6 @@ def _normalize(subject: str, body: str, html: str) -> str:
     )[:_MAX]
 
 
-
-
-
-def inspect_contextual_risks(
-
-    subject: str,
-
-    body: str,
-
-    html: str = ""
-
-) -> list[dict[str, object]]:
-
-    """Find explicit threats, credential requests and social-engineering risks."""
-
-
 def inspect_contextual_risks(
     subject: str,
     body: str,

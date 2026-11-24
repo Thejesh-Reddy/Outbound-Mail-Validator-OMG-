@@ -139,7 +139,6 @@ def with_decision_metadata(result: dict[str, Any]) -> dict[str, Any]:
         if issues:
             flagged_files += 1
         item['confidence_score'] = score
-        item['confidence_source'] = _source_for_score(score)
         item['confidence_calibrated'] = False
         item['score_factors'] = {
             'finding_codes': list(dict.fromkeys(str(x.get('code', '')) for x in issues)),
@@ -163,7 +162,6 @@ def with_decision_metadata(result: dict[str, Any]) -> dict[str, Any]:
 
     result['confidence_score'] = score
     result['risk_score'] = round(100.0 - score, 2) if score is not None else None
-    result['confidence_source'] = _source_for_score(score)
     result['confidence_calibrated'] = False
     result['confidence_note'] = NOTE
     result['warning_required'] = status == 'WARNING'
@@ -179,5 +177,5 @@ def with_decision_metadata(result: dict[str, Any]) -> dict[str, Any]:
         any(item.get('findings') or item.get('advisories') for item in result.get('attachments', [])) or
         bool((result.get('popup') or {}).get('reasons'))
     )
-    result['Error'] = {'content': False, 'URLS': False, 'Attachments': bool(flagged)}
+    result['error'] = {'content': False, 'urls': False, 'attachments': bool(flagged)}
     return result

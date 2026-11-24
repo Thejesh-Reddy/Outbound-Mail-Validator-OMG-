@@ -122,6 +122,13 @@ def validate_content(subject: str, body: str = "", html: str = "") -> dict:
         penalty = 0.0
         coverage["contextual_signals"] = "optional_unavailable"
     detected_categories = sorted({str(item.get("category")) for item in findings if item.get("category") in SCAM_CATEGORIES})
+
+    logger.info(
+        "OMG CONTENT VALIDATION: findings=%s, codes=%s, coverage=%s",
+        len(findings),
+        [item.get("code") for item in findings],
+        coverage,
+    )
+    
     return {"findings":findings,"coverage":coverage,"model_version":model_version,
             "context_penalty":penalty,"detected_scam_categories":detected_categories}
-

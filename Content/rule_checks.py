@@ -131,6 +131,7 @@ def inspect_patterns(subject: str, html: str) -> list[dict]:
                                      "confirmed": False,
                                      "message": f"Matched configured suspicious-content rule: {rule['code']}."})
                 break
+    findings.extend(_inspect_builtin_threats(text))
     return findings
 
 

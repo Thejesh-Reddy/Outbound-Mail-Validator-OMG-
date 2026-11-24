@@ -59,9 +59,9 @@ FINDING_SEVERITIES = {
     "URL_CREDENTIALS_PRESENT": "HIGH",
     "LINK_TEXT_MISMATCH": "HIGH",
     "IDN_HOSTNAME": "LOW",
-    "SHORTENED_URL": "LOW",
-    "ACCOUNT_UPDATE_LINK_REVIEW": "MINOR",
-    "PAYMENT_UPDATE_LINK_REVIEW": "MINOR",
+    "SHORTENED_URL": "MEDIUM",
+    "ACCOUNT_UPDATE_LINK_REVIEW": "MEDIUM",
+    "PAYMENT_UPDATE_LINK_REVIEW": "MEDIUM",
 }
 
 
@@ -72,8 +72,7 @@ def _finding(code, message, *, confirmed=False):
         "severity": FINDING_SEVERITIES.get(code, "MEDIUM"),
         "message": message,
     }
-    if confirmed:
-        finding["confirmed"] = True
+    finding["confirmed"] = bool(confirmed)
     return finding
 
 
@@ -173,6 +172,11 @@ def _inspect_single_url(
     if href.startswith("#"):
         return findings
 
+    href = _normalize_visible_link(href)
+    try:
+        urlparse(href)
+    except ValueError:
+        return [_finding("MALFORMED_URL", "A URL contains an invalid host or port.")]
     scheme = _scheme_of(href)
 
     if scheme in BENIGN_SCHEMES:
@@ -262,17 +266,20 @@ def _inspect_single_url(
 
     # Compare the displayed URL with the actual destination.
     if display_text:
-        displayed = display_text.lower().strip().rstrip("/")
-        actual = href.lower().rstrip("/")
-
-        if (
-            displayed.startswith(("http://", "https://"))
-            and displayed != actual
-        ):
-            findings.append(_finding(
-                "LINK_TEXT_MISMATCH",
-                "The displayed URL differs from the hyperlink target.",
-            ))
+        displayed = _normalize_visible_link(display_text.strip())
+        if displayed.lower().startswith(("http://", "https://")):
+            try:
+                shown = urlsplit(displayed)
+                actual = urlsplit(href)
+                shown_host = (shown.hostname or "").lower().rstrip(".")
+                actual_host = (actual.hostname or "").lower().rstrip(".")
+                if shown_host != actual_host or (shown.scheme == "https" and actual.scheme == "http"):
+                    findings.append(_finding(
+                        "LINK_TEXT_MISMATCH",
+                        "The displayed URL host or security scheme differs from the hyperlink target.",
+                    ))
+            except ValueError:
+                findings.append(_finding("MALFORMED_URL", "A displayed URL is malformed."))
 
     return findings
 
@@ -321,7 +328,7 @@ def _inspect_document(soup: BeautifulSoup) -> list[dict]:
     # 1. Inspect HTML hyperlinks, including non-HTTP(S) schemes.
     for link in soup.find_all("a", href=True):
         href = (link.get("href") or "").strip()
-        if not href or href in inspected:
+        if not href:
             continue
         inspected.add(href)
         findings.extend(_inspect_single_url(href, link.get_text(" ", strip=True)))
@@ -373,7 +380,7 @@ def validate_urls(body: str = "", html: str = "", extra_urls: list[str] | None =
 
     # Explicit URL field(s) are inspected even when not written in the body.
     # Include non-http schemes in the detector rather than silently ignoring them.
-    listed_urls = [x.strip() for x in (extra_urls or []) if x and x.strip()]
+    listed_urls = [_normalize_visible_link(x.strip()) for x in (extra_urls or []) if x and x.strip()]
     seen_candidates = set(candidates)
     for value in listed_urls:
         findings.extend(_inspect_single_url(value))
@@ -404,7 +411,7 @@ def validate_urls(body: str = "", html: str = "", extra_urls: list[str] | None =
     trusted = _trusted_domains()
 
     def allowlisted(host: str) -> bool:
-        return any(host == domain or host.endswith("." + domain) for domain in trusted)
+        return host in trusted
 
     untrusted_urls = []
     for value in sorted(set(candidates)):
@@ -418,17 +425,25 @@ def validate_urls(body: str = "", html: str = "", extra_urls: list[str] | None =
     if untrusted_urls:
         visible = soup.get_text(" ", strip=True)
         visible = re.sub(r"\s+", " ", visible)[:100_000]
-        account_topic = re.search(r"\b(?:account|identity|login|profile)\b", visible, re.I)
+        # Match specific requests, not unrelated words across sentences.
+        account_topic = True
         account_update = re.search(
-            r"\b(?:review|verify|validate|confirm|update|revalidate)\b.{0,75}"
-            r"\b(?:account|identity|details|information|profile|login)\b"
-            r"|\b(?:account|profile)\b.{0,70}\b(?:outdated|verification|update|verify|review)\b",
+            r"\b(?:verify|validate|confirm|update|revalidate|reactivate|restore|secure)\s+"
+            r"(?:(?:your|the|existing|current)\s+)?"
+            r"(?:online\s+|user\s+|bank\s+)?"
+            r"(?:account(?!\s+management\b)|identity|login credentials|password|profile details)\b"
+            r"|\b(?:your account|your profile)\s+(?:is|has been|will be)\s+"
+            r"(?:suspended|locked|disabled|expired|deactivated|restricted)\b",
             visible, re.I,
         )
-        payment_topic = re.search(r"\b(?:payment|invoice|bank|vendor|billing|remittance)\b", visible, re.I)
+        payment_topic = True
         payment_change = re.search(
-            r"\b(?:revised|updated|changed|new)\b.{0,75}\b(?:payment|bank|account|instructions|details)\b"
-            r"|\b(?:payment|bank|account|instructions|details)\b.{0,75}\b(?:changed|updated|revised)\b",
+            r"\b(?:revised|updated|changed|new|change|update|replace|modify)\s+"
+            r"(?:(?:your|our|the|existing)\s+)?"
+            r"(?:bank account|banking details|bank details|payment instructions|"
+            r"payment details|beneficiary details|remittance instructions)\b"
+            r"|\b(?:bank details|payment instructions|beneficiary details)\s+"
+            r"(?:have been|has been|were|are)\s+(?:changed|updated|revised|replaced)\b",
             visible, re.I,
         )
         if account_topic and account_update:
@@ -442,10 +457,12 @@ def validate_urls(body: str = "", html: str = "", extra_urls: list[str] | None =
                 "Changed payment instructions include a non-allowlisted URL; independently confirm bank details.",
             ))
 
+    # Findings already carry severity for the downstream scoring engine.
+    # Do not penalize URL presence or double-count findings here.
     return {
         "findings": _dedupe(findings),
         "url_count": len(candidates),
-        "context_penalty": round(min(4.0, float(len(candidates))), 2),
+        "context_penalty": 0.0,
         "coverage": {
             "url_syntax_inspection": "complete",
             "url_reputation": "not_implemented",

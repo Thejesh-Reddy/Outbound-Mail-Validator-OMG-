@@ -82,9 +82,9 @@ def format_public_response(report: dict[str, Any]) -> dict[str, Any]:
             # Early limits / scanner failures have no per-file issues yet.
             # Preserve the actual blocking reason rather than hiding it.
             raw_reasons = (report.get('popup') or {}).get('reasons', [])
-            details = [str(x.get('reason', '')) for x in raw_reasons if x.get('reason')]
-            if details:
-                message += ' Reason: ' + '; '.join(details)
+            result = [str(x.get('reason', '')) for x in raw_reasons if x.get('reason')]
+            if result:
+                message += ' Reason: ' + '; '.join(result)
         popup = {
             'show': True,
             'type': 'RESTRICTED',
@@ -95,12 +95,10 @@ def format_public_response(report: dict[str, Any]) -> dict[str, Any]:
 
     result = {
         'status': status,
-        'can_send': report.get('can_send', False),
         'confidence_score': report.get('confidence_score'),
-        'requires_acknowledgement': report.get('requires_acknowledgement', False),
         # Other independent modules in the parent Email Validator populate these.
         'text': [],
-        'URL': [],
+        'url': [],
         'attachments': attachments,
         'warnings': warnings,
         'popup': popup,

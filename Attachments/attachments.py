@@ -370,7 +370,6 @@ def validate_attachments(attachments: Iterable[tuple[str, bytes]], policy: Polic
     return {
         "scope": "ATTACHMENTS_ONLY",
         "status": "RESTRICTED" if restricted else "SAFE",
-        "can_send": not restricted,  # attachment gate only; not a whole-email authorization
         "message": "Attachment validation passed (other email checks still required)." if not restricted
             else "Email sending blocked by attachment security policy.",
         "popup": {"title": "Email Restricted", "reasons": reasons} if restricted else None,

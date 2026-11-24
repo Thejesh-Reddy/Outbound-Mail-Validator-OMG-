@@ -33,6 +33,7 @@ ENV/
 # ==============================
 .env
 .env.*
+*.env
 !.env.example
 *.pem
 *.key
@@ -62,3 +63,8 @@ temp/
 *.bak
 .DS_Store
 Thumbs.db
+
+# ==============================
+# Local dev scripts
+# ==============================
+run_local.bat

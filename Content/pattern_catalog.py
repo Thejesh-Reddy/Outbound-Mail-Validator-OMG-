@@ -1,3 +1,4 @@
+
 """Load and validate the OMG pattern catalog."""
 
 import json

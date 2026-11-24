@@ -1,4 +1,4 @@
-# Unified runtime dependencies, merged from both source projects.
+# Unified runtime dependencies
 fastapi>=0.115,<1
 uvicorn[standard]>=0.34,<1
 python-multipart>=0.0.20,<1
@@ -13,7 +13,12 @@ pytesseract>=0.3.13,<1
 defusedxml>=0.7.1,<1
 joblib>=1.4,<2
 numpy>=1.26,<3
-scikit-learn>=1.7,<2  # optional trusted ML artifact / research tools; disabled by default
-openpyxl>=3.1,<4  # bulktesting/run_batch.py report export
-pymongo>=4.9
-python-dotenv>=1.0
+scikit-learn>=1.7,<2
+openpyxl>=3.1,<4
+PyJWT>=2.9,<3
+email-validator>=2.2,<3
+pwdlib[bcrypt]
+pwdlib[argon2]
+SQLAlchemy>=2.0,<3
+PyMySQL>=1.1,<2
+cryptography
